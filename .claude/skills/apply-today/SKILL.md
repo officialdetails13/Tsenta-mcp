@@ -26,7 +26,9 @@ Run one search per title, for each location set below:
 
 - Titles (`search`): product manager, business analyst, product owner, program manager,
   technical project manager, product operations, product marketing.
-- Locations: `["state:TX", "city:New York", "city:Chicago", "state:CA"]`
+- Locations: `["state:IL", "state:TX", "state:CA", "state:MA", "state:NY", "state:FL", "city:Seattle"]`
+  (this covers Dallas, NYC and Chicago; if a search returns few results, also try
+  `city:Dallas`, `city:New York`, `city:Chicago`, `city:Boston`, `city:Miami` separately)
 - Remote US: `locations: ["country:US"]`, `workplaceTypes: ["REMOTE"]`
 
 Already-applied jobs are filtered out by the tool.
@@ -39,8 +41,8 @@ Already-applied jobs are filtered out by the tool.
 - Skip any title containing president, director, vice, VP, AVP, SVP, EVP, "head of", or "principal".
 - Skip jobs listing more than 6 years of experience (`yearsOfExperienceMin` > 6). When no
   requirement is listed, skip obviously senior roles (Staff or Lead with senior scope).
-- Location must be Texas, New York City, Chicago, California, or genuinely remote within the US.
-  Skip non-US jobs.
+- Location must be in Illinois, Texas, California, Massachusetts, New York, Florida, Seattle
+  (Washington), or genuinely remote within the US. Skip non-US jobs.
 - Skip duplicates and siblings of the same posting.
 
 ## Apply
