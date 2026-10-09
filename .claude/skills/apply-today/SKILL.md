@@ -47,8 +47,12 @@ Already-applied jobs are filtered out by the tool.
   Georgia, Colorado, North Carolina, Virginia, Arizona, or genuinely remote within the US.
   Skip non-US jobs.
 - Do not apply a minimum match score: the best matches on this account are about 70-78%, so a
-  threshold of 80% would exclude everything. Within each pass, apply to higher `matchScore` first.
-- Skip duplicates and siblings of the same posting.
+  threshold of 80% would exclude everything. Within each pass, apply to higher `matchScore` first. If the user later asks for a minimum score, test it
+  first with a `datePosted: "all"` search; report how many jobs meet it before applying.
+- Never re-apply: the search tool hides jobs with the same job id, but the same role is often posted
+  under different ids (siblings, a parent company vs a subsidiary, or "Location ..." title variants).
+  Before applying, check `list-applications` (query by company name) and skip any company+title
+  combination that already appears, and skip siblings listed in a job's `siblings` field.
 
 ## Apply
 
