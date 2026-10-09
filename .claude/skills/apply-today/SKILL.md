@@ -19,14 +19,16 @@ unless the user says so. Stop if the monthly bucket is used up.
 
 ## Search
 
-Call `get-job-recommendations` with `limit: 50`, `autoApplyOnly: true`, `maxYearsExperience: 6`,
-and `datePosted: "24h"` first (widen to `7d` if fewer than about 60 qualifying jobs).
+Call `get-job-recommendations` with `limit: 50`, `autoApplyOnly: true`, `maxYearsExperience: 6`.
+Prioritise the newest postings: search `datePosted: "24h"` first, apply to those, then keep widening the
+window (`7d`, then `14d`, then `30d`) until about 60 qualifying jobs have been applied to for the day
+(already-applied jobs are filtered out automatically, so each wider pass only returns new ones).
 
 Run one search per title, for each location set below:
 
 - Titles (`search`): product manager, business analyst, product owner, program manager,
   technical project manager, product operations, product marketing.
-- Locations: `["state:IL", "state:TX", "state:CA", "state:MA", "state:NY", "state:FL", "city:Seattle"]`
+- Locations: `["state:IL", "state:TX", "state:CA", "state:MA", "state:NY", "state:FL", "state:WA", "state:GA", "state:CO", "state:NC", "state:VA", "state:AZ"]`
   (this covers Dallas, NYC and Chicago; if a search returns few results, also try
   `city:Dallas`, `city:New York`, `city:Chicago`, `city:Boston`, `city:Miami` separately)
 - Remote US: `locations: ["country:US"]`, `workplaceTypes: ["REMOTE"]`
@@ -41,8 +43,11 @@ Already-applied jobs are filtered out by the tool.
 - Skip any title containing president, director, vice, VP, AVP, SVP, EVP, "head of", or "principal".
 - Skip jobs listing more than 6 years of experience (`yearsOfExperienceMin` > 6). When no
   requirement is listed, skip obviously senior roles (Staff or Lead with senior scope).
-- Location must be in Illinois, Texas, California, Massachusetts, New York, Florida, Seattle
-  (Washington), or genuinely remote within the US. Skip non-US jobs.
+- Location must be in Illinois, Texas, California, Massachusetts, New York, Florida, Washington,
+  Georgia, Colorado, North Carolina, Virginia, Arizona, or genuinely remote within the US.
+  Skip non-US jobs.
+- Do not apply a minimum match score: the best matches on this account are about 70-78%, so a
+  threshold of 80% would exclude everything. Within each pass, apply to higher `matchScore` first.
 - Skip duplicates and siblings of the same posting.
 
 ## Apply
