@@ -12,8 +12,11 @@ tools are unavailable, say so and stop.
 
 ## Goal
 
-Use the monthly application allowance (about 60 applications per day) before it resets on
-2026-10-30. After 2026-10-30, do not apply; tell the user the allowance has reset.
+Use the monthly application allowance (1,500 per cycle, about 50 applications per day) before it
+resets; read the reset date from `cycleEnd` in `get-application-balance` (current cycle ends 2026-11-29).
+On the reset day, check the balance and tell the user if the cycle changed. Spread the remaining
+allowance evenly over the days left. The user needs visa sponsorship, so keep the default
+`needsSponsorship` filter (never pass false).
 Call `get-application-balance` first. Spend the monthly bucket only. Never spend pack credits
 unless the user says so. Stop if the monthly bucket is used up.
 
@@ -21,7 +24,7 @@ unless the user says so. Stop if the monthly bucket is used up.
 
 Call `get-job-recommendations` with `limit: 50`, `autoApplyOnly: true`, `maxYearsExperience: 6`.
 Prioritise the newest postings: search `datePosted: "24h"` first, apply to those, then keep widening the
-window (`7d`, then `14d`, then `30d`) until about 60 qualifying jobs have been applied to for the day
+window (`7d`, then `14d`, then `30d`) until about 50 qualifying jobs have been applied to for the day
 (already-applied jobs are filtered out automatically, so each wider pass only returns new ones).
 
 Run one search per title, for each location set below:
@@ -56,7 +59,7 @@ Already-applied jobs are filtered out by the tool.
 
 ## Apply
 
-Call `apply-to-job` with `jobIds` in batches of up to 20, about 60 total per day. Then check
+Call `apply-to-job` with `jobIds` in batches of up to 20, about 50 total per day. Then check
 `list-applications` with `filter: "failed"` and retry each failure at most once.
 
 ## Report
