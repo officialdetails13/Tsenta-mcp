@@ -20,6 +20,12 @@ Development with hot reload: run `npm run dev:server` and `npm run dev:web` in t
 
 **Demo accounts** (password `password123`): `brand@glowlab.co`, `brand@fuelbar.co`, `brand@stackly.app` (brands); `mayaglow@creator.demo`, `emmapaws@creator.demo`, or any `<handle>@creator.demo` (creators).
 
+## Deploy to Render
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/officialdetails13/tsenta-mcp/tree/claude/festive-pascal-v686gy)
+
+The repo-root `render.yaml` defines a free web service (Node 22, built from `collabo/`, with a generated `AUTH_SECRET`). Free-tier storage is temporary, so the database resets to the demo data on each restart or redeploy. Attach a Render disk and set `DB_FILE` to a path on it to keep data.
+
 ## What's in it
 
 | Area | Brands | Creators |

@@ -1,0 +1,15 @@
+# Render Blueprint for the Collabo marketplace (lives in collabo/).
+services:
+  - type: web
+    name: collabo
+    runtime: node
+    plan: free
+    rootDir: collabo
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/meta
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: AUTH_SECRET
+        generateValue: true
