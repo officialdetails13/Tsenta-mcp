@@ -26,6 +26,36 @@ Development with hot reload: run `npm run dev:server` and `npm run dev:web` in t
 
 The repo-root `render.yaml` defines a free web service (Node 22, built from `collabo/`, with a generated `AUTH_SECRET`). Free-tier storage is temporary, so the database resets to the demo data on each restart or redeploy. Attach a Render disk and set `DB_FILE` to a path on it to keep data.
 
+## Verified Instagram data
+
+Creators connect their Instagram **Creator or Business** account through Instagram's official login (Business Login for Instagram). Collabo then reads, with their permission:
+
+- profile: followers, media count, profile photo (`GET /me`)
+- Reels, posts and Stories with likes and comments (`/me/media`, `/me/stories`) and insights: views, reach, saves, shares, replies, average watch time (`/{media-id}/insights`)
+- audience demographics: age, gender, country (`/me/insights?metric=follower_demographics`)
+
+Every metric records its source (`instagram_api`, `self_reported` or `demo`) and when it was fetched. Brands can click any number to see where it came from. Verified numbers refresh in the background (at most every 6 hours) and can't be edited by hand. Access tokens are encrypted at rest (AES-256-GCM) and refreshed before they expire. Nothing is scraped, and no creator appears on Collabo unless they signed up.
+
+### Setting it up
+
+1. Create an app at developers.facebook.com, add the **Instagram** product, and choose **API setup with Instagram login**.
+2. Add the redirect URI `https://<your-domain>/api/connect/instagram/callback`.
+3. Set the **Deauthorize** callback to `https://<your-domain>/api/instagram/deauthorize` and **Data deletion request** to `https://<your-domain>/api/instagram/data-deletion`.
+4. Request the permissions `instagram_business_basic` and `instagram_business_manage_insights`. Until Meta's App Review approves them, only Instagram accounts added as testers on the app can connect.
+5. Set these environment variables (on Render: Environment):
+
+| Variable | Value |
+|---|---|
+| `IG_APP_ID` / `IG_APP_SECRET` | Instagram app ID and secret (from the app's Instagram login settings) |
+| `IG_REDIRECT_URI` | Exactly the redirect URI from step 2 |
+| `TOKEN_KEY` | A long random string used to encrypt tokens |
+| `PUBLIC_URL` | e.g. `https://collabo-51m1.onrender.com` (used in deletion-status links) |
+| `IG_API_VERSION` | Optional, e.g. `v24.0`; blank uses the app's default |
+
+Tokens and synced data live in the database, so production needs a persistent disk (Render's free tier resets it on every deploy).
+
+`test/instagram.test.js` runs the whole flow against a local fake of the Instagram API.
+
 ## What's in it
 
 | Area | Brands | Creators |

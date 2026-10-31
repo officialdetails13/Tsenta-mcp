@@ -4,6 +4,7 @@ import { tx } from './db.js';
 import { hashPassword, verifyPassword, issueToken, readToken } from './auth.js';
 import { PLATFORMS, DELIVERABLES, NICHES, estimateRate, marketRate, priceVerdict, creatorTier } from './pricing.js';
 import { isDemoEmail } from './seed.js';
+import * as ig from './instagram.js';
 import { DURATIONS, FORMAT_LABEL, TERM_OPTIONS, DEFAULT_TERMS, InputError, normalizeItems, normalizeTerms, deliverablesText, quote, suggestUnit, termLabels, itemLabel, fmtDuration } from './deliverables.js';
 import { reviewContent, aiReview, aiEnabled, suggestHashtags } from './review.js';
 import { EDIT_STYLES, POST_FORMATS, STAGES, stageFor, analyzeHook, analyzePosts, weeklyCounts, trendStats, missionsFor, recommendations } from './content.js';
@@ -15,6 +16,7 @@ export const DRAFT_REVIEW_DAYS = 3; // brand silence after a draft counts as app
 export const FINAL_REVIEW_DAYS = 5; // brand silence after delivery counts as approval
 export const LATE_GRACE_DAYS = 3; // after this, a brand can reclaim escrow for a missed deadline
 export const BONUS_WINDOW_DAYS = 30;
+const SYNC_MAX_AGE_MS = 6 * 36e5; // verified profiles refresh at most every 6 hours
 const DEMO_MODE = process.env.DEMO_MODE !== 'off'; // time to hit a performance target before the bonus is refunded
 
 class HttpError extends Error {
@@ -102,6 +104,7 @@ export function createApp(db) {
     offer: { format_labels: FORMAT_LABEL, durations: DURATIONS, term_options: TERM_OPTIONS, default_terms: DEFAULT_TERMS },
     feedback_categories: ['hook', 'branding', 'messaging', 'visuals', 'audio', 'caption', 'compliance', 'general'],
     ai_review: aiEnabled(),
+    instagram_connect: ig.configured(),
   }));
 
   // ---------- creators ----------
@@ -134,9 +137,13 @@ export function createApp(db) {
     const packages = q('SELECT * FROM packages WHERE creator_id = ? AND active = 1 ORDER BY price_cents').all(id);
     const stats = creatorStats(id);
     const tier = creatorTier({ creator: c, socials, packages, stats });
+    const verified = socials.filter((s) => s.source === 'instagram_api');
     return {
       id: c.user_id, name: c.name, handle: c.handle, bio: c.bio, location: c.location,
       niches: parseJson(c.niches, []), audience: parseJson(c.audience, {}), avatar_color: c.avatar_color,
+      avatar_url: verified[0]?.profile_picture_url || null, is_demo: Boolean(c.is_demo),
+      verified_platforms: verified.map((s) => s.platform),
+      data_source: verified.length ? 'verified' : c.is_demo ? 'demo' : 'self_reported',
       socials, packages, stats, tier: tier.tier, tier_score: tier.score,
       total_followers: socials.reduce((a, s) => a + s.followers, 0),
       starting_price_cents: packages[0]?.price_cents ?? null,
@@ -150,6 +157,7 @@ export function createApp(db) {
     const text = String(f.q || '').trim().toLowerCase();
     if (text) list = list.filter((c) => [c.name, c.handle, c.bio, c.location, ...c.niches].join(' ').toLowerCase().includes(text));
     if (f.niche) list = list.filter((c) => c.niches.includes(f.niche));
+    if (f.verified === '1') list = list.filter((c) => c.verified_platforms.length);
     if (f.platform) list = list.filter((c) => c.socials.some((s) => s.platform === f.platform));
     const reach = (c) => (f.platform ? c.socials.find((s) => s.platform === f.platform)?.followers ?? 0 : c.total_followers);
     if (f.minFollowers) list = list.filter((c) => reach(c) >= Number(f.minFollowers));
@@ -162,7 +170,7 @@ export function createApp(db) {
       price: (a, b) => (a.starting_price_cents ?? Infinity) - (b.starting_price_cents ?? Infinity),
       rating: (a, b) => (b.stats.avg_rating ?? 0) - (a.stats.avg_rating ?? 0),
       roi: (a, b) => (b.stats.avg_roi ?? 0) - (a.stats.avg_roi ?? 0),
-      recommended: (a, b) => b.tier_score - a.tier_score || reach(b) - reach(a),
+      recommended: (a, b) => b.verified_platforms.length - a.verified_platforms.length || b.tier_score - a.tier_score || reach(b) - reach(a),
     };
     list.sort(sorters[f.sort] || sorters.recommended);
     res.json(list);
@@ -182,7 +190,149 @@ export function createApp(db) {
     c.case_studies = q(`SELECT d.title, d.price_cents, b.company, b.industry, r.impressions, r.clicks, r.conversions, r.revenue_cents
       FROM results r JOIN deals d ON d.id = r.deal_id JOIN businesses b ON b.user_id = d.business_id
       WHERE d.creator_id = ? ORDER BY r.revenue_cents DESC LIMIT 6`).all(c.id);
+    c.media_counts = Object.fromEntries(q('SELECT kind, COUNT(*) AS n FROM media WHERE creator_id = ? GROUP BY kind').all(c.id).map((r) => [r.kind, r.n]));
+    c.history = q("SELECT followers, engagement_rate, avg_views, fetched_at FROM metric_snapshots WHERE creator_id = ? AND platform = 'instagram' ORDER BY fetched_at DESC LIMIT 30").all(c.id).reverse();
+    c.provenance = provenanceFor(c);
+    const conn = q('SELECT username, status, last_synced_at, connected_at FROM ig_connections WHERE creator_id = ?').get(c.id);
+    c.instagram = conn ? { connected: true, username: conn.username, status: conn.status, last_synced_at: conn.last_synced_at, connected_at: conn.connected_at } : { connected: false };
+    // Keep verified numbers fresh: profiles older than SYNC_MAX_AGE refresh in the background.
+    if (conn && conn.status === 'active' && (!conn.last_synced_at || Date.now() - Date.parse(`${conn.last_synced_at.replace(' ', 'T')}Z`) > SYNC_MAX_AGE_MS)) {
+      ig.syncCreator(db, c.id).catch((e) => console.error(`Background sync for creator ${c.id} failed: ${e.message}`));
+    }
     res.json(c);
+  });
+
+  // Where every number on a profile comes from, so a brand can check it.
+  const SOURCE_LABEL = {
+    instagram_api: 'Verified: fetched from Instagram’s official API with the account owner’s permission',
+    self_reported: 'Self-reported: entered by the creator, not verified',
+    demo: 'Demo data: a fictional creator used to show how Collabo works',
+  };
+  function provenanceFor(c) {
+    const p = {};
+    for (const s of c.socials) {
+      const api = s.source === 'instagram_api';
+      const sample = api ? q("SELECT COUNT(*) AS n FROM media WHERE creator_id = ? AND platform = ? AND kind != 'story' AND source = 'instagram_api'").get(c.id, s.platform).n : null;
+      const base = { source: s.source, source_label: SOURCE_LABEL[s.source] ?? SOURCE_LABEL.self_reported, fetched_at: s.fetched_at, verified_at: s.verified_at, platform: s.platform, handle: s.handle };
+      p[`followers.${s.platform}`] = { ...base, metric: `${s.platform} followers`, value: s.followers,
+        method: api ? `GET ${ig.config().graphBase}/me?fields=followers_count (Instagram API, read with the creator’s token)` : base.source_label };
+      p[`er.${s.platform}`] = { ...base, metric: `${s.platform} engagement rate`, value: `${s.engagement_rate}%`,
+        method: api ? `Average of (likes + comments + saves + shares) on the last ${Math.min(sample, 12)} posts and reels, divided by followers. Likes and comments from /me/media, saves and shares from /{media-id}/insights.` : base.source_label };
+      p[`views.${s.platform}`] = { ...base, metric: `${s.platform} average views`, value: s.avg_views,
+        method: api ? 'Average “views” insight on the most recent reels (/{media-id}/insights?metric=views). Views replaced plays and impressions in April 2025.' : base.source_label };
+    }
+    const audSource = c.audience && Object.keys(c.audience).length ? (q('SELECT audience_source FROM creators WHERE user_id = ?').get(c.id).audience_source ?? (c.is_demo ? 'demo' : 'self_reported')) : null;
+    if (audSource) p.audience = { metric: 'Audience demographics', source: audSource, source_label: SOURCE_LABEL[audSource],
+      fetched_at: q('SELECT audience_fetched_at FROM creators WHERE user_id = ?').get(c.id).audience_fetched_at,
+      method: audSource === 'instagram_api' ? 'GET /me/insights?metric=follower_demographics&metric_type=total_value with breakdowns age, gender and country. Instagram only returns this for accounts with 100+ followers.' : SOURCE_LABEL[audSource] };
+    p.sales = { metric: 'Sales driven and ROI', source: 'collabo_deals', source_label: 'Collabo deals: revenue brands reported for this creator’s promo codes on completed deals',
+      method: `Sum of brand-reported revenue across ${c.stats.campaigns_with_results} deal${c.stats.campaigns_with_results === 1 ? '' : 's'} with results; ROI = revenue ÷ fees paid.`, value: c.stats.revenue_driven_cents };
+    p.rating = { metric: 'Rating', source: 'collabo_deals', source_label: 'Collabo reviews: left by brands after completed deals', method: `Average of ${c.stats.review_count} review${c.stats.review_count === 1 ? '' : 's'}.`, value: c.stats.avg_rating };
+    return p;
+  }
+
+  // Published content with stats: reels, posts, stories (and videos/shorts on other platforms).
+  app.get('/api/creators/:id/media', (req, res) => {
+    const id = Number(req.params.id);
+    if (!q('SELECT 1 FROM creators WHERE user_id = ?').get(id)) fail(404, 'Creator not found');
+    const kind = req.query.kind;
+    const rows = q(`SELECT * FROM media WHERE creator_id = ? ${kind ? 'AND kind = ?' : ''} ORDER BY posted_at DESC LIMIT 60`).all(...(kind ? [id, kind] : [id]));
+    const followers = Object.fromEntries(q('SELECT platform, followers FROM socials WHERE creator_id = ?').all(id).map((s) => [s.platform, s.followers]));
+    res.json(rows.map((m) => {
+      const eng = (m.likes ?? 0) + (m.comments ?? 0) + (m.saves ?? 0) + (m.shares ?? 0);
+      return {
+        ...m,
+        engagement_rate: m.kind === 'story' || !followers[m.platform] ? null : Math.round((eng / followers[m.platform]) * 1000) / 10,
+        source_label: SOURCE_LABEL[m.source],
+        method: m.source === 'instagram_api'
+          ? `Likes and comments from /me/media; ${ig.INSIGHT_METRICS[{ reel: 'REELS', story: 'STORY' }[m.kind] ?? 'FEED'].join(', ')} from /${m.external_id}/insights`
+          : SOURCE_LABEL[m.source],
+      };
+    }));
+  });
+
+  // Side-by-side comparison for brands deciding between creators.
+  app.get('/api/compare', (req, res) => {
+    const ids = String(req.query.ids || '').split(',').map(Number).filter(Boolean).slice(0, 4);
+    if (ids.length < 2) fail(400, 'Pick at least 2 creators to compare');
+    res.json(ids.map(creatorSummary).filter(Boolean).map((c) => ({ ...c, provenance: provenanceFor(c),
+      media_counts: Object.fromEntries(q('SELECT kind, COUNT(*) AS n FROM media WHERE creator_id = ? GROUP BY kind').all(c.id).map((r) => [r.kind, r.n])) })));
+  });
+
+  // ---------- Instagram connection (official API, creator consent) ----------
+  app.get('/api/creator/connections', auth('creator'), (req, res) => {
+    const conn = q('SELECT username, account_type, status, connected_at, last_synced_at, last_sync_error, token_expires_at FROM ig_connections WHERE creator_id = ?').get(req.user.id);
+    res.json({ instagram: { configured: ig.configured(), connected: Boolean(conn), ...(conn ?? {}) } });
+  });
+
+  app.post('/api/connect/instagram/start', auth('creator'), (req, res) => {
+    if (!ig.configured()) fail(503, 'Instagram connection isn’t set up on this server yet (IG_APP_ID, IG_APP_SECRET, IG_REDIRECT_URI).');
+    res.json({ url: ig.authorizeUrl(ig.makeState(req.user.id)) });
+  });
+
+  // Instagram redirects the creator's browser here after they approve (or cancel).
+  app.get('/api/connect/instagram/callback', async (req, res) => {
+    const back = (qs) => res.redirect(`/studio?${new URLSearchParams(qs)}`);
+    const uid = ig.readState(req.query.state);
+    if (!uid || !q("SELECT 1 FROM users WHERE id = ? AND role = 'creator'").get(uid)) return back({ instagram: 'error', reason: 'The connection link expired. Please try again.' });
+    if (req.query.error || !req.query.code) return back({ instagram: 'cancelled' });
+    try {
+      const t = await ig.exchangeCode(String(req.query.code).replace(/#_$/, ''));
+      const profile = await ig.fetchProfile(t.token);
+      const taken = q('SELECT creator_id FROM ig_connections WHERE ig_user_id = ? AND creator_id != ?').get(String(profile.id), uid);
+      if (taken) return back({ instagram: 'error', reason: 'That Instagram account is already connected to another Collabo creator.' });
+      q(`INSERT INTO ig_connections (creator_id, ig_user_id, username, account_type, access_token_enc, token_expires_at, scopes, status)
+          VALUES (?, ?, ?, ?, ?, datetime('now', ?), ?, 'active')
+        ON CONFLICT (creator_id) DO UPDATE SET ig_user_id = excluded.ig_user_id, username = excluded.username, account_type = excluded.account_type,
+          access_token_enc = excluded.access_token_enc, token_expires_at = excluded.token_expires_at, scopes = excluded.scopes, status = 'active', last_sync_error = NULL`)
+        .run(uid, String(profile.id), profile.username, profile.account_type ?? null, ig.encrypt(t.token), `+${t.expiresIn ?? 5184000} seconds`, JSON.stringify(t.scopes));
+      await ig.syncCreator(db, uid);
+      back({ instagram: 'connected' });
+    } catch (e) {
+      console.error('Instagram connect failed:', e.message);
+      back({ instagram: 'error', reason: e.message });
+    }
+  });
+
+  app.post('/api/creator/connections/instagram/sync', auth('creator'), async (req, res) => {
+    try { res.json(await ig.syncCreator(db, req.user.id)); } catch (e) {
+      if (e instanceof ig.InstagramError) fail(e.status && e.status < 500 ? e.status : 502, e.message);
+      throw e;
+    }
+  });
+
+  app.delete('/api/creator/connections/instagram', auth('creator'), (req, res) => {
+    tx(db, () => ig.purgeCreator(db, req.user.id));
+    res.status(204).end();
+  });
+
+  // Meta calls these when a user removes the app or asks for their data to be deleted.
+  const formBody = express.urlencoded({ extended: false });
+  function creatorForSigned(req) {
+    const data = ig.parseSignedRequest(req.body?.signed_request);
+    if (!data?.user_id) fail(400, 'Invalid signed_request');
+    const conn = q('SELECT creator_id FROM ig_connections WHERE ig_user_id = ?').get(String(data.user_id));
+    return { platformUserId: String(data.user_id), creatorId: conn?.creator_id ?? null };
+  }
+  app.post('/api/instagram/deauthorize', formBody, (req, res) => {
+    const { creatorId } = creatorForSigned(req);
+    if (creatorId) tx(db, () => ig.purgeCreator(db, creatorId));
+    res.json({ ok: true });
+  });
+  app.post('/api/instagram/data-deletion', formBody, (req, res) => {
+    const { platformUserId, creatorId } = creatorForSigned(req);
+    const code = crypto.randomBytes(9).toString('base64url');
+    tx(db, () => {
+      if (creatorId) ig.purgeCreator(db, creatorId);
+      q("INSERT INTO deletion_requests (confirmation_code, platform_user_id, creator_id, status) VALUES (?, ?, ?, 'completed')").run(code, platformUserId, creatorId);
+    });
+    const origin = process.env.PUBLIC_URL || `${req.protocol}://${req.get('host')}`;
+    res.json({ url: `${origin}/api/instagram/deletion-status/${code}`, confirmation_code: code });
+  });
+  app.get('/api/instagram/deletion-status/:code', (req, res) => {
+    const r = q('SELECT status, created_at FROM deletion_requests WHERE confirmation_code = ?').get(req.params.code);
+    if (!r) fail(404, 'Unknown confirmation code');
+    res.json({ confirmation_code: req.params.code, ...r, detail: 'All Instagram data Collabo stored for this account has been deleted.' });
   });
 
   // ---------- creator studio ----------
@@ -203,6 +353,9 @@ export function createApp(db) {
   app.put('/api/creator/socials/:platform', auth('creator'), (req, res) => {
     const platform = req.params.platform;
     if (!PLATFORMS.includes(platform)) fail(400, 'Unknown platform');
+    if (q("SELECT 1 FROM socials WHERE creator_id = ? AND platform = ? AND source = 'instagram_api'").get(req.user.id, platform)) {
+      fail(409, 'This account is verified through Instagram, so its numbers update automatically and can’t be edited by hand.');
+    }
     need(req.body, ['handle', 'followers']);
     const { handle, followers, engagement_rate = 0, avg_views = 0 } = req.body;
     q(`INSERT INTO socials (creator_id, platform, handle, followers, engagement_rate, avg_views) VALUES (?, ?, ?, ?, ?, ?)
@@ -213,6 +366,9 @@ export function createApp(db) {
   });
 
   app.delete('/api/creator/socials/:platform', auth('creator'), (req, res) => {
+    if (q("SELECT 1 FROM socials WHERE creator_id = ? AND platform = ? AND source = 'instagram_api'").get(req.user.id, req.params.platform)) {
+      fail(409, 'Disconnect Instagram to remove this verified account.');
+    }
     q('DELETE FROM socials WHERE creator_id = ? AND platform = ?').run(req.user.id, req.params.platform);
     res.json(creatorSummary(req.user.id));
   });

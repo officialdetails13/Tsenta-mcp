@@ -13,3 +13,15 @@ services:
         value: "22"
       - key: AUTH_SECRET
         generateValue: true
+      - key: TOKEN_KEY # encrypts Instagram access tokens at rest
+        generateValue: true
+      # Instagram connection (see collabo/README.md, "Verified Instagram data").
+      # Entered in the Render dashboard; leave unset to keep the feature off.
+      - key: IG_APP_ID
+        sync: false
+      - key: IG_APP_SECRET
+        sync: false
+      - key: IG_REDIRECT_URI
+        sync: false
+      - key: PUBLIC_URL
+        sync: false

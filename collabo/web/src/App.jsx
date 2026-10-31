@@ -13,6 +13,7 @@ import Studio from './pages/Studio.jsx';
 import Growth from './pages/Growth.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import DealFlowTour from './pages/DealFlowTour.jsx';
+import Compare from './pages/Compare.jsx';
 
 const Ctx = createContext(null);
 export const useSession = () => useContext(Ctx);
@@ -72,6 +73,7 @@ export default function App() {
           <Route path="/join/:role" element={<Auth mode="register" />} />
           <Route path="/discover" element={<Discover />} />
           <Route path="/creators/:id" element={<CreatorProfile />} />
+          <Route path="/compare" element={<Compare />} />
           <Route path="/campaigns" element={<Campaigns />} />
           <Route path="/campaigns/:id" element={<CampaignDetail />} />
           <Route path="/deal-flow" element={<DealFlowTour />} />

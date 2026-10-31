@@ -171,6 +171,28 @@ function seedPosts(ins, creatorId, c, trendIds, index) {
   }
 }
 
+// Demo creators get a content grid built from their seeded post log, marked as demo data.
+const KIND = { reel: 'reel', carousel: 'post', post: 'post', story: 'story', video: 'video', short: 'short', thread: 'post', live: null };
+function seedDemoMedia(db, creatorId) {
+  const posts = db.prepare('SELECT * FROM posts WHERE creator_id = ? ORDER BY posted_at DESC LIMIT 30').all(creatorId);
+  const ins = db.prepare(`INSERT INTO media (creator_id, platform, external_id, kind, media_type, caption, posted_at, likes, comments, views, reach, saves, shares, source, fetched_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'demo', datetime('now'))`);
+  for (const p of posts) {
+    const kind = KIND[p.format];
+    if (!kind) continue;
+    ins.run(creatorId, p.platform, `demo-${p.id}`, kind, kind === 'post' ? 'CAROUSEL_ALBUM' : 'VIDEO', p.hook, `${p.posted_at} 18:00:00`, p.likes, p.comments, p.views, Math.round(p.views * 0.82), p.saves, p.shares);
+  }
+  // Two stories from the last 24 hours on Instagram creators.
+  const ig = db.prepare("SELECT followers FROM socials WHERE creator_id = ? AND platform = 'instagram'").get(creatorId);
+  if (ig) {
+    for (const [i, h] of [[1, 'Behind the scenes'], [2, 'Poll: what should I film next?']]) {
+      const views = Math.round(ig.followers * (0.06 + 0.02 * i));
+      ins.run(creatorId, 'instagram', `demo-story-${creatorId}-${i}`, 'story', 'IMAGE', h, new Date(Date.now() - i * 5 * 36e5).toISOString().slice(0, 19).replace('T', ' '),
+        null, null, views, Math.round(views * 0.9), null, Math.round(views * 0.004));
+    }
+  }
+}
+
 const daysAgo = (n) => new Date(Date.now() - n * 864e5).toISOString().slice(0, 19).replace('T', ' ');
 const dateIn = (n) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
 
@@ -193,12 +215,13 @@ export function seed(db) {
     for (const c of CREATORS) {
       const id = ins('INSERT INTO users (role, email, password_hash, name) VALUES (?, ?, ?, ?)', 'creator', `${c.handle}@creator.demo`, pw, c.name);
       creatorIds[c.handle] = id;
-      ins('INSERT INTO creators (user_id, handle, bio, location, niches, audience, avatar_color) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      ins('INSERT INTO creators (user_id, handle, bio, location, niches, audience, avatar_color, is_demo) VALUES (?, ?, ?, ?, ?, ?, ?, 1)',
         id, c.handle, c.bio, c.loc, JSON.stringify(c.niches), JSON.stringify(c.audience), c.color);
       for (const [platform, handle, followers, er, views] of c.socials) {
-        ins('INSERT INTO socials (creator_id, platform, handle, followers, engagement_rate, avg_views) VALUES (?, ?, ?, ?, ?, ?)', id, platform, handle, followers, er, views);
+        ins("INSERT INTO socials (creator_id, platform, handle, followers, engagement_rate, avg_views, source, fetched_at) VALUES (?, ?, ?, ?, ?, ?, 'demo', datetime('now'))", id, platform, handle, followers, er, views);
       }
       seedPosts(ins, id, { ...c, socials: c.socials.map(([platform, , followers, engagement_rate]) => ({ platform, followers, engagement_rate })) }, trendIds, CREATORS.indexOf(c));
+      seedDemoMedia(db, id);
       for (const [title, platform, type, qty, price, days] of c.packages) {
         pkgIds[`${c.handle}|${title}`] = ins(`INSERT INTO packages (creator_id, title, platform, deliverable_type, quantity, price_cents, turnaround_days, description)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, id, title, platform, type, qty, price * 100, days, `${qty}× ${type} on ${platform === 'any' ? 'your channels' : platform}. Includes one round of revisions and the promo code in the caption.`);
@@ -274,7 +297,7 @@ export function seed(db) {
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const db = openDb();
-  for (const t of ['transactions', 'reviews', 'results', 'messages', 'offers', 'deals', 'campaigns', 'posts', 'trends', 'packages', 'socials', 'creators', 'businesses', 'users']) db.exec(`DELETE FROM ${t}`);
+  for (const t of ['transactions', 'reviews', 'results', 'messages', 'feedback', 'offers', 'deals', 'campaigns', 'media', 'metric_snapshots', 'ig_connections', 'deletion_requests', 'posts', 'trends', 'packages', 'socials', 'creators', 'businesses', 'users']) db.exec(`DELETE FROM ${t}`);
   seed(db);
   console.log(`Seeded. Log in as brand@glowlab.co or mayaglow@creator.demo with password "${DEMO_PASSWORD}".`);
 }

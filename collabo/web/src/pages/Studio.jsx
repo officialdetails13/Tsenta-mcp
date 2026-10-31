@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api, compact, money } from '../api.js';
 import { useSession } from '../App.jsx';
 import { toNext } from './Growth.jsx';
-import { ErrorNote, Modal, NicheChips, PLATFORM_LABEL, Platform, TierBadge, useAction, useLoad } from '../ui.jsx';
+import { ErrorNote, Modal, NicheChips, PLATFORM_LABEL, Platform, SourceBadge, TierBadge, ago, useAction, useLoad } from '../ui.jsx';
 
 export default function Studio() {
   const { user, refreshUser } = useSession();
@@ -54,6 +54,8 @@ export default function Studio() {
           })}
         </div>
       </section>
+
+      <InstagramConnect onChange={() => { reload(); reloadGrowth(); }} />
 
       <div className="two-col">
         <Socials c={c} onChange={(next) => { setC({ ...c, ...next }); reloadGrowth(); }} />
@@ -141,13 +143,17 @@ function Socials({ c, onChange }) {
   return (
     <section className="card">
       <h2>Social accounts</h2>
-      <p className="muted small">Self-reported for now. Verified OAuth sync with Instagram, TikTok and YouTube is on the roadmap.</p>
+      <p className="muted small">Accounts you add here are shown to brands as <b>self-reported</b>. Connect Instagram above to verify it; TikTok and YouTube verification are next.</p>
       <div className="stack">
         {c.socials.map((s) => (
           <div key={s.id} className="list-row">
-            <Platform p={s.platform} /><div className="grow"><b>{s.handle}</b><div className="muted small">{compact(s.followers)} followers · {s.engagement_rate}% ER · {compact(s.avg_views)} avg views</div></div>
-            <button className="link" onClick={() => setF({ platform: s.platform, handle: s.handle, followers: s.followers, engagement_rate: s.engagement_rate, avg_views: s.avg_views })}>Edit</button>
-            <button className="link danger" onClick={() => run(async () => onChange(await api(`/creator/socials/${s.platform}`, { method: 'DELETE' })))}>Remove</button>
+            <Platform p={s.platform} /><div className="grow"><b>{s.handle}</b> <SourceBadge source={s.source} compact /><div className="muted small">{compact(s.followers)} followers · {s.engagement_rate}% ER · {compact(s.avg_views)} avg views</div></div>
+            {s.source === 'instagram_api' ? <span className="small muted">Updates automatically</span> : (
+              <>
+                <button className="link" onClick={() => setF({ platform: s.platform, handle: s.handle, followers: s.followers, engagement_rate: s.engagement_rate, avg_views: s.avg_views })}>Edit</button>
+                <button className="link danger" onClick={() => run(async () => onChange(await api(`/creator/socials/${s.platform}`, { method: 'DELETE' })))}>Remove</button>
+              </>
+            )}
           </div>
         ))}
       </div>
@@ -197,6 +203,55 @@ function ProfileForm({ c, onSaved }) {
         <ErrorNote error={error} />
         <button className="btn secondary self-start" disabled={busy}>{saved ? 'Saved ✓' : 'Save profile'}</button>
       </form>
+    </section>
+  );
+}
+
+// Connect Instagram through the official login so brands see verified numbers.
+function InstagramConnect({ onChange }) {
+  const [state, reload] = useLoad(() => api('/creator/connections'), []);
+  const [params, setParams] = useSearchParams();
+  const { busy, error, run } = useAction();
+  const flash = params.get('instagram');
+  const ig = state?.instagram;
+  if (!ig) return null;
+  const clearFlash = () => setParams({}, { replace: true });
+  return (
+    <section className="card ig-connect">
+      <div className="row between wrap gap">
+        <div className="row gap"><span className="plat plat-instagram">IG</span><h2>Verify with Instagram</h2></div>
+        {ig.connected && <SourceBadge source="instagram_api" />}
+      </div>
+      {flash === 'connected' && <div className="hint ok small">Instagram connected. Your followers, Reels, posts and Stories are now verified on your profile. <button className="link" onClick={clearFlash}>Dismiss</button></div>}
+      {flash === 'error' && <div className="hint warn small">Couldn’t connect Instagram: {params.get('reason') || 'unknown error'}. <button className="link" onClick={clearFlash}>Dismiss</button></div>}
+      {flash === 'cancelled' && <div className="hint small">Connection cancelled. Nothing was shared. <button className="link" onClick={clearFlash}>Dismiss</button></div>}
+      {ig.connected ? (
+        <>
+          <div className="kv">
+            <span>Account</span><b>@{ig.username}</b>
+            <span>Last synced</span><b>{ago(ig.last_synced_at) ?? 'Pending'}</b>
+            <span>Status</span><b>{ig.status === 'active' ? 'Active' : ig.status === 'reconnect' ? 'Permission expired: reconnect' : 'Sync problem'}</b>
+          </div>
+          {ig.last_sync_error && <p className="small muted">Last sync note: {ig.last_sync_error}</p>}
+          <div className="row gap wrap">
+            <button className="btn secondary" disabled={busy} onClick={() => run(async () => { await api('/creator/connections/instagram/sync', { method: 'POST' }); await reload(); onChange(); })}>{busy ? 'Refreshing…' : 'Refresh now'}</button>
+            {ig.status === 'reconnect' && <button className="btn" disabled={busy} onClick={() => run(async () => { window.location.href = (await api('/connect/instagram/start', { method: 'POST' })).url; })}>Reconnect</button>}
+            <button className="btn ghost danger" disabled={busy} onClick={() => confirm('Disconnect Instagram? Your verified data will be removed from Collabo.') && run(async () => { await api('/creator/connections/instagram', { method: 'DELETE' }); await reload(); onChange(); })}>Disconnect</button>
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="small">Brands trust verified numbers. Connect your Instagram <b>Creator or Business</b> account through Instagram’s official login. Collabo can then read your followers, Reels, posts, Stories and their stats (views, reach, likes, comments, saves, shares) and your audience demographics. Collabo can’t post, message or change anything on your account, and you can disconnect at any time.</p>
+          <ul className="small muted">
+            <li>Personal accounts can’t be connected (Instagram’s rule). Switching to a Creator account is free in Instagram settings.</li>
+            <li>Numbers refresh automatically and can’t be edited by hand once verified.</li>
+          </ul>
+          {ig.configured
+            ? <button className="btn self-start" disabled={busy} onClick={() => run(async () => { window.location.href = (await api('/connect/instagram/start', { method: 'POST' })).url; })}>Connect Instagram</button>
+            : <p className="hint small">Instagram connection isn’t switched on for this Collabo server yet. The operator needs to add a Meta app (IG_APP_ID, IG_APP_SECRET, IG_REDIRECT_URI).</p>}
+        </>
+      )}
+      <ErrorNote error={error} />
     </section>
   );
 }

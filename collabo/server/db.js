@@ -19,7 +19,10 @@ CREATE TABLE IF NOT EXISTS creators (
   location TEXT NOT NULL DEFAULT '',
   niches TEXT NOT NULL DEFAULT '[]',
   audience TEXT NOT NULL DEFAULT '{}',
-  avatar_color TEXT NOT NULL DEFAULT '#7c3aed'
+  avatar_color TEXT NOT NULL DEFAULT '#7c3aed',
+  audience_source TEXT,
+  audience_fetched_at TEXT,
+  is_demo INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS socials (
@@ -30,7 +33,70 @@ CREATE TABLE IF NOT EXISTS socials (
   followers INTEGER NOT NULL DEFAULT 0,
   engagement_rate REAL NOT NULL DEFAULT 0,
   avg_views INTEGER NOT NULL DEFAULT 0,
+  -- self_reported (typed by the creator), instagram_api (fetched with the
+  -- creator's consent), or demo (fictional seed data)
+  source TEXT NOT NULL DEFAULT 'self_reported',
+  fetched_at TEXT,
+  verified_at TEXT,
+  external_id TEXT,
+  profile_picture_url TEXT,
   UNIQUE (creator_id, platform)
+);
+
+CREATE TABLE IF NOT EXISTS ig_connections (
+  creator_id INTEGER PRIMARY KEY REFERENCES creators(user_id) ON DELETE CASCADE,
+  ig_user_id TEXT,
+  username TEXT,
+  account_type TEXT,
+  access_token_enc TEXT NOT NULL,
+  token_expires_at TEXT,
+  scopes TEXT,
+  status TEXT NOT NULL DEFAULT 'active',
+  connected_at TEXT NOT NULL DEFAULT (datetime('now')),
+  last_synced_at TEXT,
+  last_sync_error TEXT
+);
+
+-- Published content with its stats, from the platform API (or demo seed data).
+CREATE TABLE IF NOT EXISTS media (
+  id INTEGER PRIMARY KEY,
+  creator_id INTEGER NOT NULL REFERENCES creators(user_id) ON DELETE CASCADE,
+  platform TEXT NOT NULL,
+  external_id TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  media_type TEXT,
+  caption TEXT NOT NULL DEFAULT '',
+  permalink TEXT NOT NULL DEFAULT '',
+  media_url TEXT NOT NULL DEFAULT '',
+  thumbnail_url TEXT NOT NULL DEFAULT '',
+  posted_at TEXT NOT NULL,
+  likes INTEGER, comments INTEGER, views INTEGER, reach INTEGER, saves INTEGER, shares INTEGER, replies INTEGER, avg_watch_ms INTEGER,
+  source TEXT NOT NULL,
+  fetched_at TEXT NOT NULL,
+  insights_error TEXT,
+  UNIQUE (platform, external_id)
+);
+CREATE INDEX IF NOT EXISTS media_by_creator ON media (creator_id, posted_at);
+
+CREATE TABLE IF NOT EXISTS metric_snapshots (
+  id INTEGER PRIMARY KEY,
+  creator_id INTEGER NOT NULL REFERENCES creators(user_id) ON DELETE CASCADE,
+  platform TEXT NOT NULL,
+  followers INTEGER NOT NULL,
+  media_count INTEGER,
+  engagement_rate REAL,
+  avg_views INTEGER,
+  source TEXT NOT NULL,
+  fetched_at TEXT NOT NULL
+);
+
+-- Data deletion requests received from Meta, so users can check their status.
+CREATE TABLE IF NOT EXISTS deletion_requests (
+  confirmation_code TEXT PRIMARY KEY,
+  platform_user_id TEXT NOT NULL,
+  creator_id INTEGER,
+  status TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS packages (
@@ -245,6 +311,8 @@ function migrate(db) {
     ['items', 'TEXT'], ['terms', 'TEXT'], ['draft_caption', 'TEXT'], ['draft_hashtags', 'TEXT'], ['draft_script', 'TEXT'], ['draft_duration_s', 'INTEGER'],
     ['draft_round', 'INTEGER NOT NULL DEFAULT 0'], ['review', 'TEXT'], ['ai_review', 'TEXT'], ['post_caption', 'TEXT'], ['post_hashtags', 'TEXT'],
     ['payment_method', 'TEXT'], ['business_signed_name', 'TEXT'], ['creator_signed_name', 'TEXT'], ['brand_verified', 'TEXT']]);
+  add('socials', [['source', "TEXT NOT NULL DEFAULT 'self_reported'"], ['fetched_at', 'TEXT'], ['verified_at', 'TEXT'], ['external_id', 'TEXT'], ['profile_picture_url', 'TEXT']]);
+  add('creators', [['audience_source', 'TEXT'], ['audience_fetched_at', 'TEXT'], ['is_demo', 'INTEGER NOT NULL DEFAULT 0']]);
   add('offers', [['bonus_cents', 'INTEGER NOT NULL DEFAULT 0'], ['bonus_metric', 'TEXT'], ['bonus_target', 'INTEGER'], ['items', 'TEXT'], ['terms', 'TEXT']]);
   // v0.1 restricted transaction types with a CHECK; SQLite can't drop it in place.
   const txSql = db.prepare("SELECT sql FROM sqlite_master WHERE name = 'transactions'").get()?.sql ?? '';
