@@ -3,11 +3,8 @@ import { Link, useParams } from 'react-router-dom';
 import { api, money } from '../api.js';
 import { useSession } from '../App.jsx';
 import { ErrorNote, EscrowBadge, StatusPill, useAction, useLoad } from '../ui.jsx';
+import DealFlow from '../DealFlow.jsx';
 
-const STEPS = [
-  ['negotiating', 'Offer'], ['contract', 'Sign'], ['awaiting_funding', 'Fund'], ['in_progress', 'Draft'],
-  ['draft_submitted', 'Review'], ['draft_approved', 'Post'], ['delivered', 'Approve'], ['completed', 'Paid'],
-];
 const FUNDED = ['in_progress', 'draft_submitted', 'draft_approved', 'delivered', 'disputed'];
 const METRIC_LABEL = { views: 'views', conversions: 'conversions', revenue: 'tracked revenue' };
 
@@ -19,15 +16,14 @@ const dueIn = (iso) => {
 
 export default function DealRoom() {
   const { id } = useParams();
-  const { user } = useSession();
-  const [d, , setD, loadError] = useLoad(() => api(`/deals/${id}`), [id]);
+  const { user, switchUser } = useSession();
+  const [d, , setD, loadError] = useLoad(() => api(`/deals/${id}`), [id, user.id]);
   const act = useAction();
   if (loadError) return <p className="error">{loadError}</p>;
   if (!d) return <p className="muted">Loading…</p>;
 
   const isBiz = d.my_side === 'business';
   const post = (path, body) => act.run(async () => setD(await api(`/deals/${d.id}${path}`, { method: 'POST', body })));
-  const stepIdx = STEPS.findIndex(([s]) => s === (d.status === 'disputed' ? d.dispute_prev_status : d.status));
   const other = isBiz ? `${d.creator.name} (@${d.creator.handle})` : d.business.company;
   const p = { d, isBiz, post, busy: act.busy, me: user };
 
@@ -39,11 +35,16 @@ export default function DealRoom() {
         <p className="muted">With {isBiz ? <Link to={`/creators/${d.creator.id}`}>{other}</Link> : other}{d.campaign_id && <> · from <Link to={`/campaigns/${d.campaign_id}`}>campaign brief</Link></>}</p>
       </div>
 
-      {stepIdx >= 0 && (
-        <ol className="stepper">
-          {STEPS.map(([s, label], i) => <li key={s} className={i < stepIdx || d.status === 'completed' ? 'done' : i === stepIdx ? 'now' : ''}>{label}</li>)}
-        </ol>
+      {d.demo_switch && (
+        <div className="demo-bar">
+          <span>🎭 Demo deal. You’re the <b>{isBiz ? `brand (${d.business.company})` : `creator (@${d.creator.handle})`}</b>.</span>
+          <button className="btn sm" disabled={act.busy} onClick={() => act.run(async () => switchUser(await api(`/demo/switch/${d.id}`, { method: 'POST' })))}>
+            Switch to the {isBiz ? 'creator' : 'brand'} ⇄
+          </button>
+        </div>
       )}
+
+      <DealFlow deal={d} mySide={d.my_side === 'business' ? 'brand' : 'creator'} />
 
       <div className="two-col deal-layout">
         <div className="stack">

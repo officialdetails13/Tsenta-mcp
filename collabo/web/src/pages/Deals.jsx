@@ -36,7 +36,10 @@ export default function Deals() {
 
   return (
     <>
-      <div className="page-head"><h1>Deals</h1><p className="muted">Negotiations, contracts and deliveries in one inbox.</p></div>
+      <div className="page-head row between wrap gap">
+        <div><h1>Deals</h1><p className="muted">Negotiations, contracts and deliveries in one inbox.</p></div>
+        <Link to="/deal-flow" className="btn ghost sm">How deals work · try a demo</Link>
+      </div>
       <section className="card">
         <h2>Active ({active.length})</h2>
         {active.length ? <div className="stack">{active.map(row)}</div> : (

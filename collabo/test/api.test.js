@@ -255,3 +255,23 @@ test('top tiers require a completed-deal track record', async () => {
   assert.equal(creatorTier({ ...full, stats: stats(5) }).tier, 'Elite');
   assert.equal(creatorTier({ ...full, stats: stats(0) }).tier, 'Rising');
 });
+
+test('demo walkthrough: start a deal and switch sides, demo accounts only', async () => {
+  const start = await call('POST', '/demo/start');
+  assert.equal(start.status, 201);
+  let d = (await call('GET', `/deals/${start.body.deal_id}`, null, start.body.token)).body;
+  assert.equal(d.status, 'negotiating');
+  assert.equal(d.my_side, 'business');
+  assert.equal(d.demo_switch, true);
+  const sw = (await call('POST', `/demo/switch/${d.id}`, {}, start.body.token)).body;
+  assert.equal(sw.user.role, 'creator');
+  d = (await call('POST', `/deals/${d.id}/offers/${d.offers[0].id}/accept`, {}, sw.token)).body;
+  assert.equal(d.status, 'contract');
+
+  // A real (non-demo) account can't be switched into.
+  const reg = (await call('POST', '/auth/register', { role: 'business', email: 'real@biz.co', password: 'longenough', name: 'Real Biz' })).body;
+  const creatorId = (await call('GET', '/creators?q=emmapaws')).body[0].id;
+  const real = (await call('POST', '/deals', { creator_id: creatorId, price: 300, deliverables: 'x', deadline: inDays(9) }, reg.token)).body;
+  assert.equal(real.demo_switch, false);
+  assert.equal((await call('POST', `/demo/switch/${real.id}`, {}, reg.token)).status, 403);
+});

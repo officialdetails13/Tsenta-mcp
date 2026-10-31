@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import { tx } from './db.js';
 import { hashPassword, verifyPassword, issueToken, readToken } from './auth.js';
 import { PLATFORMS, DELIVERABLES, NICHES, estimateRate, marketRate, priceVerdict, creatorTier } from './pricing.js';
+import { isDemoEmail } from './seed.js';
 import { EDIT_STYLES, POST_FORMATS, STAGES, stageFor, analyzeHook, analyzePosts, weeklyCounts, trendStats, missionsFor, recommendations } from './content.js';
 
 export const BUYER_FEE = 0.05; // charged to the business on top of the deal price
@@ -11,7 +12,8 @@ export const DRAFT_RELEASE = 0.3; // share of the fee released when the draft is
 export const DRAFT_REVIEW_DAYS = 3; // brand silence after a draft counts as approval
 export const FINAL_REVIEW_DAYS = 5; // brand silence after delivery counts as approval
 export const LATE_GRACE_DAYS = 3; // after this, a brand can reclaim escrow for a missed deadline
-export const BONUS_WINDOW_DAYS = 30; // time to hit a performance target before the bonus is refunded
+export const BONUS_WINDOW_DAYS = 30;
+const DEMO_MODE = process.env.DEMO_MODE !== 'off'; // time to hit a performance target before the bonus is refunded
 
 class HttpError extends Error {
   constructor(status, message) { super(message); this.status = status; }
@@ -583,6 +585,7 @@ export function createApp(db) {
     d.escrow = escrowOf(d.id);
     const total = (d.price_cents ?? 0) + (d.bonus_cents ?? 0);
     d.fees = { buyer_fee_cents: Math.round(total * BUYER_FEE), seller_fee_cents: Math.round((d.price_cents ?? 0) * SELLER_FEE), fund_total_cents: total + Math.round(total * BUYER_FEE) };
+    d.demo_switch = DEMO_MODE && [d.business_id, d.creator_id].every((uid) => isDemoEmail(q('SELECT email FROM users WHERE id = ?').get(uid).email));
     d.policy = { draft_release_pct: DRAFT_RELEASE * 100, draft_review_days: DRAFT_REVIEW_DAYS, final_review_days: FINAL_REVIEW_DAYS, late_grace_days: LATE_GRACE_DAYS, bonus_window_days: BONUS_WINDOW_DAYS };
     d.overdue = isOverdue(d);
     const due = (ts, days) => (ts ? new Date(Date.parse(`${ts.replace(' ', 'T')}Z`) + days * 864e5).toISOString() : null);
@@ -960,6 +963,32 @@ export function createApp(db) {
     const reviewee = req.user.id === d.business_id ? d.creator_id : d.business_id;
     q('INSERT INTO reviews (deal_id, reviewer_id, reviewee_id, rating, body) VALUES (?, ?, ?, ?, ?)').run(d.id, req.user.id, reviewee, rating, String(req.body.body || ''));
     res.status(201).json(dealOut(d.id, req.user));
+  });
+
+  // ---------- demo walkthrough (demo accounts only; DEMO_MODE=off disables) ----------
+  // Demo passwords are public, so letting one demo account act as another exposes nothing new.
+  app.post('/api/demo/start', (_req, res) => {
+    if (!DEMO_MODE) fail(404, 'Not found');
+    const brand = q("SELECT id FROM users WHERE email = 'brand@glowlab.co'").get();
+    const creator = q("SELECT user_id AS id FROM creators WHERE handle = 'emmapaws'").get();
+    const pkg = creator && q("SELECT * FROM packages WHERE creator_id = ? AND active = 1 AND deliverable_type != 'ugc' ORDER BY price_cents LIMIT 1").get(creator.id);
+    if (!brand || !pkg) fail(409, 'Demo data is missing. Run npm run seed.');
+    const deadline = new Date(Date.now() + 14 * 864e5).toISOString().slice(0, 10);
+    const id = tx(db, () => {
+      const { lastInsertRowid } = q('INSERT INTO deals (business_id, creator_id, package_id, title) VALUES (?, ?, ?, ?)').run(brand.id, creator.id, pkg.id, `Demo: ${pkg.title}`);
+      addOffer(lastInsertRowid, brand.id, { price_cents: pkg.price_cents, deliverables: `${pkg.quantity}× ${pkg.platform} ${pkg.deliverable_type}: ${pkg.title}`, deadline, note: 'Demo offer: switch to the creator to accept or counter it.', bonus_cents: 10000, bonus_metric: 'views', bonus_target: 20000 });
+      sysMsg(lastInsertRowid, 'Demo deal created. Use “Switch to the creator” at the top of this page to play the other side at any step.');
+      return lastInsertRowid;
+    });
+    res.status(201).json({ token: issueToken(brand.id), user: me(brand.id), deal_id: Number(id) });
+  });
+
+  app.post('/api/demo/switch/:id', auth(), (req, res) => {
+    const d = loadDeal(req.params.id, req.user);
+    const other = req.user.id === d.business_id ? d.creator_id : d.business_id;
+    const emails = [req.user.email, q('SELECT email FROM users WHERE id = ?').get(other).email];
+    if (!DEMO_MODE || !emails.every(isDemoEmail)) fail(403, 'Switching sides only works on demo deals');
+    res.json({ token: issueToken(other), user: me(other) });
   });
 
   app.use('/api', (_req, _res) => fail(404, 'Not found'));

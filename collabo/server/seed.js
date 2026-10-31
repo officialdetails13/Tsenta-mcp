@@ -174,6 +174,9 @@ function seedPosts(ins, creatorId, c, trendIds, index) {
 const daysAgo = (n) => new Date(Date.now() - n * 864e5).toISOString().slice(0, 19).replace('T', ' ');
 const dateIn = (n) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
 
+export const DEMO_BRAND_EMAILS = BUSINESSES.map((b) => b.email);
+export const isDemoEmail = (email) => /@creator\.demo$/.test(email) || DEMO_BRAND_EMAILS.includes(email);
+
 export function seedTrends(db) {
   return TRENDS.map(([platform, kind, name, description, how_to, niches]) => Number(db.prepare('INSERT INTO trends (platform, kind, name, description, how_to, niches) VALUES (?, ?, ?, ?, ?, ?)')
     .run(platform, kind, name, description, how_to, JSON.stringify(niches)).lastInsertRowid));

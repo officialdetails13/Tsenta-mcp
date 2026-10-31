@@ -14,6 +14,7 @@ export default function Landing() {
           <Link to="/join/business" className="btn lg">I'm a brand: find creators</Link>
           <Link to="/join/creator" className="btn lg secondary">I'm a creator: start earning</Link>
         </div>
+        <Link to="/deal-flow" className="btn ghost self-start">See how a deal works, step by step →</Link>
         <p className="muted small">Demo logins (password <code>password123</code>): <code>brand@glowlab.co</code> · <code>mayaglow@creator.demo</code></p>
       </section>
 

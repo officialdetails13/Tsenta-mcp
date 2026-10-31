@@ -12,6 +12,7 @@ import DealRoom from './pages/DealRoom.jsx';
 import Studio from './pages/Studio.jsx';
 import Growth from './pages/Growth.jsx';
 import Dashboard from './pages/Dashboard.jsx';
+import DealFlowTour from './pages/DealFlowTour.jsx';
 
 const Ctx = createContext(null);
 export const useSession = () => useContext(Ctx);
@@ -31,6 +32,7 @@ export default function App() {
     user, meta,
     signIn: ({ token, user }) => { setToken(token); setUser(user); navigate(user.role === 'creator' ? '/studio' : '/discover'); },
     signOut: () => { setToken(null); setUser(null); navigate('/'); },
+    switchUser: ({ token, user }) => { setToken(token); setUser(user); },
     refreshUser: () => api('/me').then(setUser),
   };
 
@@ -72,6 +74,7 @@ export default function App() {
           <Route path="/creators/:id" element={<CreatorProfile />} />
           <Route path="/campaigns" element={<Campaigns />} />
           <Route path="/campaigns/:id" element={<CampaignDetail />} />
+          <Route path="/deal-flow" element={<DealFlowTour />} />
           <Route path="/deals" element={<Private><Deals /></Private>} />
           <Route path="/deals/:id" element={<Private><DealRoom /></Private>} />
           <Route path="/studio" element={<Private role="creator"><Studio /></Private>} />
