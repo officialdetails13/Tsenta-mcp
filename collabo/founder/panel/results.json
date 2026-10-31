@@ -1,0 +1,159 @@
+{
+ "business": "Collabo (brand side): a self-serve marketplace where small businesses hire creators with escrow",
+ "seed": 7,
+ "dealt": 20,
+ "answered": 20,
+ "skipped": [],
+ "buys": 1,
+ "passes": 19,
+ "buy_rate": 0.05,
+ "by_segment": [
+  [
+   "Local business owner (cafe, restaurant, gym, salon)",
+   7,
+   0.14285714285714285
+  ],
+  [
+   "Marketing manager at a 10-50 person company",
+   4,
+   0.0
+  ],
+  [
+   "Founder of a small online (DTC) brand",
+   7,
+   0.0
+  ],
+  [
+   "Solo seller or side-hustle shop",
+   2,
+   0.0
+  ]
+ ],
+ "by_behaviour": [
+  [
+   "Agency-curious",
+   2,
+   0.5
+  ],
+  [
+   "Burned before",
+   3,
+   0.0
+  ],
+  [
+   "Bargain hunter",
+   2,
+   0.0
+  ],
+  [
+   "Uses another platform",
+   2,
+   0.0
+  ],
+  [
+   "Numbers first",
+   3,
+   0.0
+  ],
+  [
+   "Never tried influencers",
+   4,
+   0.0
+  ],
+  [
+   "DIY on Instagram",
+   4,
+   0.0
+  ]
+ ],
+ "by_income": [
+  [
+   "$74,000 to $91,000",
+   7,
+   0.14285714285714285
+  ],
+  [
+   "$91,000 and up",
+   7,
+   0.0
+  ],
+  [
+   "under $74,000",
+   6,
+   0.0
+  ]
+ ],
+ "why_not": [
+  [
+   "trust",
+   11,
+   [
+    "I already book creators on a marketplace I know, and this one says right on the page that follower counts and results aren't verified. The escrow and promo codes are nice, but a lower fee doesn't make me switch when the thing I worry about most isn't solved.",
+    "Dropping $525 on one Reel from a creator whose follower counts and past results nobody has verified is a gamble I can't make on my budget, when I can put that same money into Meta ads and see ROAS within days. The promo code is nice, but it only tells me after the fact whether I wasted the money."
+   ],
+   [
+    "P003",
+    "P004"
+   ]
+  ],
+  [
+   "habit",
+   6,
+   [
+    "Collabstr already does this for me, and I'd have to start over with a brand-new marketplace that has no track record. The escrow and draft approval are nice, but they don't give me a reason to switch this week.",
+    "I already find creators by DMing them and I mostly pay in free product, not $500 cash. A marketplace built around paid cash packages doesn't match how I do this, and I'm not paying a fee on top for something I can do myself."
+   ],
+   [
+    "P001",
+    "P002"
+   ]
+  ],
+  [
+   "convenience",
+   2,
+   [
+    "The escrow and promo code are smart, but this still leaves me picking creators, briefing them and approving drafts myself, which is exactly the work I don't have time for. And I'd be guessing whether a $500 Reel is a fair price, since the follower counts and results aren't verified.",
+    "My problem isn't finding or paying creators, I already DM them and Venmo them for nothing. My problem is I don't have time to manage them and approve drafts, and this still puts me in the middle of every draft and every live post."
+   ],
+   [
+    "P018",
+    "P020"
+   ]
+  ]
+ ],
+ "why_yes": [
+  [
+   "trust",
+   1,
+   [
+    "Twenty-five bucks to have my money held until I've seen the draft and the live post is cheaper than getting burned once by a creator I DM'd who ghosts me. I'd pull one $500 test out of my Meta budget and see if the promo code actually moves covers."
+   ],
+   [
+    "P019"
+   ]
+  ]
+ ],
+ "flip": [
+  "Follower counts and past results verified straight from Instagram/TikTok, so I know the creator's numbers and track record are real before I put money in.",
+  "If I could post product-for-content (gifting) deals on it and still get the escrow and promo-code tracking, with verified follower counts.",
+  "Follower counts and audience stats pulled directly from Instagram/TikTok and verified, so I can see real reach and engagement before I pay.",
+  "Verified follower and sales data from past Collabo deals, like real promo-code redemptions per creator, plus cheaper starter packages around $100-150 so I can test one creator without risking a month of ad spend.",
+  "Follower counts and past results verified straight from Instagram/TikTok, plus a named, regulated escrow or payment provider holding the money, so I know I'd get it back even if Collabo disappeared.",
+  "Verified audience location and stats from Instagram, plus real promo-code redemption numbers from other local businesses like mine, so I could run one cheap test with a local creator and compare it to my Meta cost per customer.",
+  "Follower counts and past results verified by Instagram or TikTok, plus a small seller I recognize in my niche saying they got sales from it.",
+  "Verified follower counts plus real promo-code redemption numbers from other local cafes or salons in my city, ideally with a cheaper local creator under $200 so I can test it once.",
+  "Follower counts and past results verified straight from Instagram/TikTok, so I know the creator's numbers are real before my money goes into escrow.",
+  "A verified local creator with a cheaper starter package, say under $200, plus results from another small business in my city showing actual promo code redemptions.",
+  "Follower and engagement numbers pulled directly from Instagram/TikTok with a fake-follower check, so I can trust a creator without doing my own audit.",
+  "Verified audience data showing how many of a creator's followers are in my city, plus real promo-code redemption numbers from past deals with businesses like mine.",
+  "Follower and engagement numbers pulled straight from Instagram/TikTok and verified, plus a way to offer free product or a small cash-plus-product deal instead of $500 up front.",
+  "Follower and engagement numbers verified straight from Instagram or TikTok, plus a few smaller creators under $200 so I can test once without betting half my ad budget.",
+  "Verified follower and sales data pulled straight from Instagram/TikTok, plus a bigger pool of creators in my niche than my current platform has.",
+  "Verified follower and sales numbers pulled straight from Instagram, plus local creators in my city who take small deals ($100-$200) or free product, so it saves me the time of DMing people one by one.",
+  "Verified local audience numbers and promo-code results from other cafes in my city showing real redemptions, plus creators under $200 so it fits what I already spend.",
+  "If Collabo picked two or three vetted creators for my niche and budget, so I only had to approve one draft and watch the promo code sales in the evening.",
+  "If it took the managing off my plate, like a creator who's done great work for brands like mine handling it end to end where I only glance at the final post, or verified results so I could trust a creator without vetting them myself."
+ ],
+ "purchases_first_month_per_buyer": 1.0,
+ "price_answers": 20
+}

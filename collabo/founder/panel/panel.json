@@ -1,0 +1,101 @@
+{
+ "n": 20,
+ "seed": 7,
+ "customer": {
+  "business": "Collabo (brand side): a self-serve marketplace where small businesses hire creators with escrow",
+  "target": "US small-business owners and marketers who want influencer marketing but have no agency and under $3,000 a month to spend on it",
+  "where": "United States, online",
+  "age": [
+   24,
+   55
+  ],
+  "segments": [
+   {
+    "name": "Local business owner (cafe, restaurant, gym, salon)",
+    "share": 0.35,
+    "income": [
+     40000,
+     120000
+    ]
+   },
+   {
+    "name": "Founder of a small online (DTC) brand",
+    "share": 0.35,
+    "income": [
+     50000,
+     180000
+    ]
+   },
+   {
+    "name": "Marketing manager at a 10-50 person company",
+    "share": 0.2,
+    "income": [
+     60000,
+     110000
+    ]
+   },
+   {
+    "name": "Solo seller or side-hustle shop",
+    "share": 0.1,
+    "income": [
+     25000,
+     60000
+    ]
+   }
+  ],
+  "behaviours": [
+   {
+    "name": "DIY on Instagram",
+    "share": 0.22,
+    "how": "Already DMs creators directly and pays them by Venmo or PayPal, or with free product."
+   },
+   {
+    "name": "Burned before",
+    "share": 0.15,
+    "how": "Paid a creator once who posted late, posted something off-brand, or vanished."
+   },
+   {
+    "name": "Numbers first",
+    "share": 0.15,
+    "how": "Only spends on marketing that can be tracked to sales, and runs Meta ads today."
+   },
+   {
+    "name": "Never tried influencers",
+    "share": 0.18,
+    "how": "Curious, has seen competitors do it, doesn't know where to start or what to pay."
+   },
+   {
+    "name": "Uses another platform",
+    "share": 0.1,
+    "how": "Has booked creators on Collabstr or a similar marketplace before."
+   },
+   {
+    "name": "Agency-curious",
+    "share": 0.1,
+    "how": "Got an agency quote and found the minimum too high."
+   },
+   {
+    "name": "Bargain hunter",
+    "share": 0.1,
+    "how": "Prefers gifting free product over paying creators cash."
+   }
+  ],
+  "objections": [
+   "Will a creator post actually bring me customers, or just likes?",
+   "Why pay a platform fee when I can DM creators myself?",
+   "How do I know their followers are real?",
+   "I've never heard of this site, is my money safe?",
+   "Collabstr already does this",
+   "$500 is a lot for one post when I don't know if it works",
+   "I don't have time to manage creators and approve drafts"
+  ],
+  "habits": [
+   "you check your shop's sales on your phone every evening",
+   "you post on your business Instagram yourself, a few times a week",
+   "you spend about $1,000 a month on Meta ads",
+   "you run the business with two part-time employees",
+   "you get pitched by marketing agencies by email every week"
+  ]
+ },
+ "pitch": "Collabo: a website and phone app where small businesses hire social media creators directly. Browse creators by niche, city, follower count and price; each lists fixed-price packages (for example \"1 Instagram Reel, $500\") and past results from deals on Collabo.\nYour money goes into escrow before the creator starts. You approve a draft before anything is posted (that releases 30% to the creator), and the rest is released when you approve the live post. If they miss the deadline, you get your money back. Every deal gets a promo code so you can see the sales it drove.\nPricing: no subscription. You pay the creator's price plus a 5% Collabo fee, so a $500 deal costs you $525 (the creator separately pays Collabo 10% of their earnings).\nNote: follower counts and results are reported by creators and brands; they are not yet verified by Instagram or TikTok.\nWhen answering price questions, give Collabo's fee to you, in dollars, on a $500 creator deal (today it is $25)."
+}

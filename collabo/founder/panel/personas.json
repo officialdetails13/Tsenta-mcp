@@ -1,0 +1,222 @@
+[
+ {
+  "id": "P001",
+  "name": "Omar",
+  "age": 24,
+  "segment": "Marketing manager at a 10-50 person company",
+  "income": 84000,
+  "behaviour": "Burned before",
+  "behaviour_how": "Paid a creator once who posted late, posted something off-brand, or vanished.",
+  "objection": "Collabstr already does this",
+  "habit": "you post on your business Instagram yourself, a few times a week"
+ },
+ {
+  "id": "P002",
+  "name": "Raj",
+  "age": 40,
+  "segment": "Marketing manager at a 10-50 person company",
+  "income": 74000,
+  "behaviour": "Bargain hunter",
+  "behaviour_how": "Prefers gifting free product over paying creators cash.",
+  "objection": "Why pay a platform fee when I can DM creators myself?",
+  "habit": "you run the business with two part-time employees"
+ },
+ {
+  "id": "P003",
+  "name": "Emil",
+  "age": 47,
+  "segment": "Founder of a small online (DTC) brand",
+  "income": 129000,
+  "behaviour": "Uses another platform",
+  "behaviour_how": "Has booked creators on Collabstr or a similar marketplace before.",
+  "objection": "How do I know their followers are real?",
+  "habit": "you post on your business Instagram yourself, a few times a week"
+ },
+ {
+  "id": "P004",
+  "name": "Owen",
+  "age": 27,
+  "segment": "Solo seller or side-hustle shop",
+  "income": 41000,
+  "behaviour": "Numbers first",
+  "behaviour_how": "Only spends on marketing that can be tracked to sales, and runs Meta ads today.",
+  "objection": "I don't have time to manage creators and approve drafts",
+  "habit": "you get pitched by marketing agencies by email every week"
+ },
+ {
+  "id": "P005",
+  "name": "Sana",
+  "age": 49,
+  "segment": "Founder of a small online (DTC) brand",
+  "income": 102000,
+  "behaviour": "Burned before",
+  "behaviour_how": "Paid a creator once who posted late, posted something off-brand, or vanished.",
+  "objection": "I've never heard of this site, is my money safe?",
+  "habit": "you check your shop's sales on your phone every evening"
+ },
+ {
+  "id": "P006",
+  "name": "Maya",
+  "age": 54,
+  "segment": "Local business owner (cafe, restaurant, gym, salon)",
+  "income": 91000,
+  "behaviour": "Numbers first",
+  "behaviour_how": "Only spends on marketing that can be tracked to sales, and runs Meta ads today.",
+  "objection": "Will a creator post actually bring me customers, or just likes?",
+  "habit": "you post on your business Instagram yourself, a few times a week"
+ },
+ {
+  "id": "P007",
+  "name": "Selin",
+  "age": 28,
+  "segment": "Solo seller or side-hustle shop",
+  "income": 59000,
+  "behaviour": "Agency-curious",
+  "behaviour_how": "Got an agency quote and found the minimum too high.",
+  "objection": "I've never heard of this site, is my money safe?",
+  "habit": "you post on your business Instagram yourself, a few times a week"
+ },
+ {
+  "id": "P008",
+  "name": "Ruby",
+  "age": 31,
+  "segment": "Local business owner (cafe, restaurant, gym, salon)",
+  "income": 67000,
+  "behaviour": "Never tried influencers",
+  "behaviour_how": "Curious, has seen competitors do it, doesn't know where to start or what to pay.",
+  "objection": "Will a creator post actually bring me customers, or just likes?",
+  "habit": "you check your shop's sales on your phone every evening"
+ },
+ {
+  "id": "P009",
+  "name": "Nora",
+  "age": 24,
+  "segment": "Marketing manager at a 10-50 person company",
+  "income": 88000,
+  "behaviour": "Burned before",
+  "behaviour_how": "Paid a creator once who posted late, posted something off-brand, or vanished.",
+  "objection": "Collabstr already does this",
+  "habit": "you check your shop's sales on your phone every evening"
+ },
+ {
+  "id": "P010",
+  "name": "Fatima",
+  "age": 47,
+  "segment": "Local business owner (cafe, restaurant, gym, salon)",
+  "income": 89000,
+  "behaviour": "Never tried influencers",
+  "behaviour_how": "Curious, has seen competitors do it, doesn't know where to start or what to pay.",
+  "objection": "Will a creator post actually bring me customers, or just likes?",
+  "habit": "you post on your business Instagram yourself, a few times a week"
+ },
+ {
+  "id": "P011",
+  "name": "Tariq",
+  "age": 48,
+  "segment": "Founder of a small online (DTC) brand",
+  "income": 69000,
+  "behaviour": "DIY on Instagram",
+  "behaviour_how": "Already DMs creators directly and pays them by Venmo or PayPal, or with free product.",
+  "objection": "How do I know their followers are real?",
+  "habit": "you spend about $1,000 a month on Meta ads"
+ },
+ {
+  "id": "P012",
+  "name": "Felix",
+  "age": 47,
+  "segment": "Local business owner (cafe, restaurant, gym, salon)",
+  "income": 78000,
+  "behaviour": "Numbers first",
+  "behaviour_how": "Only spends on marketing that can be tracked to sales, and runs Meta ads today.",
+  "objection": "Will a creator post actually bring me customers, or just likes?",
+  "habit": "you run the business with two part-time employees"
+ },
+ {
+  "id": "P013",
+  "name": "Zoe",
+  "age": 53,
+  "segment": "Marketing manager at a 10-50 person company",
+  "income": 84000,
+  "behaviour": "Bargain hunter",
+  "behaviour_how": "Prefers gifting free product over paying creators cash.",
+  "objection": "How do I know their followers are real?",
+  "habit": "you check your shop's sales on your phone every evening"
+ },
+ {
+  "id": "P014",
+  "name": "Dev",
+  "age": 33,
+  "segment": "Founder of a small online (DTC) brand",
+  "income": 63000,
+  "behaviour": "Never tried influencers",
+  "behaviour_how": "Curious, has seen competitors do it, doesn't know where to start or what to pay.",
+  "objection": "How do I know their followers are real?",
+  "habit": "you spend about $1,000 a month on Meta ads"
+ },
+ {
+  "id": "P015",
+  "name": "Yusuf",
+  "age": 54,
+  "segment": "Founder of a small online (DTC) brand",
+  "income": 158000,
+  "behaviour": "Uses another platform",
+  "behaviour_how": "Has booked creators on Collabstr or a similar marketplace before.",
+  "objection": "Why pay a platform fee when I can DM creators myself?",
+  "habit": "you get pitched by marketing agencies by email every week"
+ },
+ {
+  "id": "P016",
+  "name": "Theo",
+  "age": 25,
+  "segment": "Local business owner (cafe, restaurant, gym, salon)",
+  "income": 56000,
+  "behaviour": "DIY on Instagram",
+  "behaviour_how": "Already DMs creators directly and pays them by Venmo or PayPal, or with free product.",
+  "objection": "Collabstr already does this",
+  "habit": "you spend about $1,000 a month on Meta ads"
+ },
+ {
+  "id": "P017",
+  "name": "Alma",
+  "age": 33,
+  "segment": "Local business owner (cafe, restaurant, gym, salon)",
+  "income": 95000,
+  "behaviour": "DIY on Instagram",
+  "behaviour_how": "Already DMs creators directly and pays them by Venmo or PayPal, or with free product.",
+  "objection": "Will a creator post actually bring me customers, or just likes?",
+  "habit": "you get pitched by marketing agencies by email every week"
+ },
+ {
+  "id": "P018",
+  "name": "Freya",
+  "age": 43,
+  "segment": "Founder of a small online (DTC) brand",
+  "income": 177000,
+  "behaviour": "Never tried influencers",
+  "behaviour_how": "Curious, has seen competitors do it, doesn't know where to start or what to pay.",
+  "objection": "I don't have time to manage creators and approve drafts",
+  "habit": "you check your shop's sales on your phone every evening"
+ },
+ {
+  "id": "P019",
+  "name": "Harper",
+  "age": 40,
+  "segment": "Local business owner (cafe, restaurant, gym, salon)",
+  "income": 81000,
+  "behaviour": "Agency-curious",
+  "behaviour_how": "Got an agency quote and found the minimum too high.",
+  "objection": "Why pay a platform fee when I can DM creators myself?",
+  "habit": "you spend about $1,000 a month on Meta ads"
+ },
+ {
+  "id": "P020",
+  "name": "Emma",
+  "age": 38,
+  "segment": "Founder of a small online (DTC) brand",
+  "income": 119000,
+  "behaviour": "DIY on Instagram",
+  "behaviour_how": "Already DMs creators directly and pays them by Venmo or PayPal, or with free product.",
+  "objection": "I don't have time to manage creators and approve drafts",
+  "habit": "you get pitched by marketing agencies by email every week"
+ }
+]

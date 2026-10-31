@@ -1,0 +1,13 @@
+{
+  "id": "P010",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "I like that the money sits in escrow and there's a promo code, but $525 is real money for a cafe and I'd be picking a creator off numbers they reported themselves. I'd probably browse and see who's local, but I wouldn't pull the trigger this month.",
+  "objection": "Follower counts and past results aren't verified, so I could pay $500 for a post that gets likes from people three states away and not one person walking through my door.",
+  "would_change_my_mind": "A verified local creator with a cheaper starter package, say under $200, plus results from another small business in my city showing actual promo code redemptions.",
+  "price_too_cheap": 5,
+  "price_cheap": 15,
+  "price_expensive": 40,
+  "price_too_expensive": 75
+}

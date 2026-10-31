@@ -1,0 +1,13 @@
+{
+  "id": "P011",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "I already DM creators and pay them by Venmo with no middleman, and the one thing I'd pay a platform for, knowing the followers are real, is exactly what they say they don't verify. Escrow is nice, but it doesn't help me if I'm paying $500 to reach bots.",
+  "objection": "Follower counts and results are self-reported by creators, so I'd still have to vet every account myself, and then what am I paying the extra 5% for?",
+  "would_change_my_mind": "Follower and engagement numbers pulled directly from Instagram/TikTok with a fake-follower check, so I can trust a creator without doing my own audit.",
+  "price_too_cheap": 5,
+  "price_cheap": 15,
+  "price_expensive": 40,
+  "price_too_expensive": 75
+}

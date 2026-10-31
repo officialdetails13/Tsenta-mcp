@@ -1,0 +1,13 @@
+{
+  "id": "P014",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "The escrow and promo codes are smart, but $525 is half my monthly ad budget and the site itself says follower counts aren't verified. I'd bookmark it and keep putting that money into Meta, where at least I can see what I'm paying for.",
+  "objection": "How do I know their followers are real? If the numbers are self-reported, I could pay $500 for a Reel that 40,000 bots watch, and the escrow doesn't protect me from that.",
+  "would_change_my_mind": "Follower and engagement numbers verified straight from Instagram or TikTok, plus a few smaller creators under $200 so I can test once without betting half my ad budget.",
+  "price_too_cheap": 5,
+  "price_cheap": 15,
+  "price_expensive": 50,
+  "price_too_expensive": 100
+}

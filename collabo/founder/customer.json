@@ -1,0 +1,37 @@
+{
+  "business": "Collabo (brand side): a self-serve marketplace where small businesses hire creators with escrow",
+  "target": "US small-business owners and marketers who want influencer marketing but have no agency and under $3,000 a month to spend on it",
+  "where": "United States, online",
+  "age": [24, 55],
+  "segments": [
+    {"name": "Local business owner (cafe, restaurant, gym, salon)", "share": 0.35, "income": [40000, 120000]},
+    {"name": "Founder of a small online (DTC) brand", "share": 0.35, "income": [50000, 180000]},
+    {"name": "Marketing manager at a 10-50 person company", "share": 0.20, "income": [60000, 110000]},
+    {"name": "Solo seller or side-hustle shop", "share": 0.10, "income": [25000, 60000]}
+  ],
+  "behaviours": [
+    {"name": "DIY on Instagram", "share": 0.22, "how": "Already DMs creators directly and pays them by Venmo or PayPal, or with free product."},
+    {"name": "Burned before", "share": 0.15, "how": "Paid a creator once who posted late, posted something off-brand, or vanished."},
+    {"name": "Numbers first", "share": 0.15, "how": "Only spends on marketing that can be tracked to sales, and runs Meta ads today."},
+    {"name": "Never tried influencers", "share": 0.18, "how": "Curious, has seen competitors do it, doesn't know where to start or what to pay."},
+    {"name": "Uses another platform", "share": 0.10, "how": "Has booked creators on Collabstr or a similar marketplace before."},
+    {"name": "Agency-curious", "share": 0.10, "how": "Got an agency quote and found the minimum too high."},
+    {"name": "Bargain hunter", "share": 0.10, "how": "Prefers gifting free product over paying creators cash."}
+  ],
+  "objections": [
+    "Will a creator post actually bring me customers, or just likes?",
+    "Why pay a platform fee when I can DM creators myself?",
+    "How do I know their followers are real?",
+    "I've never heard of this site, is my money safe?",
+    "Collabstr already does this",
+    "$500 is a lot for one post when I don't know if it works",
+    "I don't have time to manage creators and approve drafts"
+  ],
+  "habits": [
+    "you check your shop's sales on your phone every evening",
+    "you post on your business Instagram yourself, a few times a week",
+    "you spend about $1,000 a month on Meta ads",
+    "you run the business with two part-time employees",
+    "you get pitched by marketing agencies by email every week"
+  ]
+}

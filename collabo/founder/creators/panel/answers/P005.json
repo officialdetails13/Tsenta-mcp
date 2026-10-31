@@ -1,0 +1,13 @@
+{
+  "id": "P005",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "price",
+  "reason": "I already have three brand emails sitting in my inbox and a rate card I pitch from every week, so I don't need a marketplace to find deals, and I'm not handing over $50 of every $500 for a platform that admits it barely has brands yet. The escrow is nice, but my deals mostly pay already.",
+  "objection": "Another marketplace taking a cut of my money, with too few brands to bring me anything I wouldn't land myself.",
+  "would_change_my_mind": "No cut on deals I bring in myself (only charge on brands Collabo actually finds me), or proof it has enough paying brands to send me real bookings I wouldn't get otherwise.",
+  "price_too_cheap": 5,
+  "price_cheap": 20,
+  "price_expensive": 40,
+  "price_too_expensive": 60
+}

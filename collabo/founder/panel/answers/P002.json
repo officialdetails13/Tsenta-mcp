@@ -1,0 +1,13 @@
+{
+  "id": "P002",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "habit",
+  "reason": "I already find creators by DMing them and I mostly pay in free product, not $500 cash. A marketplace built around paid cash packages doesn't match how I do this, and I'm not paying a fee on top for something I can do myself.",
+  "objection": "Why pay a platform fee when I can DM creators myself? And the follower counts and results aren't verified, so I'd still have to vet everyone the same way I do now.",
+  "would_change_my_mind": "If I could post product-for-content (gifting) deals on it and still get the escrow and promo-code tracking, with verified follower counts.",
+  "price_too_cheap": 0,
+  "price_cheap": 10,
+  "price_expensive": 25,
+  "price_too_expensive": 40
+}

@@ -1,0 +1,28 @@
+{
+  "business": "Collabo (US, brand side pays 5%, creator side pays 10%)",
+  "unit": "completed deal",
+  "price": 60.00,
+  "variable": [
+    {"label": "Card processing on brand charge ($420 at 2.9% + $0.30)", "cost": 12.48},
+    {"label": "Stripe Connect payouts (2 per deal: 0.25% of $360 + 2 x $0.25)", "cost": 1.40},
+    {"label": "Stripe Connect active account ($2/mo, ~1 deal per creator-month)", "cost": 2.00},
+    {"label": "Refunds/disputes write-off reserve (ESTIMATE 1% of deal)", "cost": 4.00},
+    {"label": "Support and dispute handling, ~15 min at $20/h (ESTIMATE)", "cost": 5.00},
+    {"label": "Social stats verification API per deal (ESTIMATE)", "cost": 1.00}
+  ],
+  "fixed_monthly": [
+    {"label": "Hosting, database, email/notifications (ESTIMATE)", "cost": 170},
+    {"label": "Software and tools (ESTIMATE)", "cost": 100},
+    {"label": "Part-time ops/community person, 25 h/wk (ESTIMATE)", "cost": 2500},
+    {"label": "Marketing to recruit brands and creators (ESTIMATE)", "cost": 3000},
+    {"label": "Founder salary (NOT STATED, set to 0)", "cost": 0}
+  ],
+  "startup": [
+    {"label": "Incorporation, ToS, escrow/payments legal review (ESTIMATE)", "cost": 3000},
+    {"label": "Brand, landing page, launch content (ESTIMATE)", "cost": 1000},
+    {"label": "Seed deals: subsidise first creators' fees (ESTIMATE)", "cost": 1500}
+  ],
+  "days_per_month": 30,
+  "plan_per_day": 8,
+  "ramp_per_day": [0.3, 0.6, 1.0, 1.5, 2.0, 2.7, 3.4, 4.2, 5.0, 5.8, 6.6, 7.4]
+}

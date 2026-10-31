@@ -1,0 +1,13 @@
+{
+  "id": "P020",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "convenience",
+  "reason": "My problem isn't finding or paying creators, I already DM them and Venmo them for nothing. My problem is I don't have time to manage them and approve drafts, and this still puts me in the middle of every draft and every live post.",
+  "objection": "It's another dashboard to babysit plus a 5% fee on something I already do for free, and the follower counts and results aren't even verified, so I'd still be checking profiles myself.",
+  "would_change_my_mind": "If it took the managing off my plate, like a creator who's done great work for brands like mine handling it end to end where I only glance at the final post, or verified results so I could trust a creator without vetting them myself.",
+  "price_too_cheap": 5,
+  "price_cheap": 15,
+  "price_expensive": 40,
+  "price_too_expensive": 75
+}

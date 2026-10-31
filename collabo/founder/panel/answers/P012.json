@@ -1,0 +1,13 @@
+{
+  "id": "P012",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "The promo code and escrow are the right idea, but $525 is a big chunk of my monthly spend on one post, and the follower counts and results are just what the creators say. With Meta ads I can see cost per sale; here I'd be betting $500 on numbers nobody checked.",
+  "objection": "Follower counts and past results aren't verified, so I can't tell if a creator actually has local followers who'll walk into my place or just likes from bots and out-of-towners.",
+  "would_change_my_mind": "Verified audience data showing how many of a creator's followers are in my city, plus real promo-code redemption numbers from past deals with businesses like mine.",
+  "price_too_cheap": 5,
+  "price_cheap": 15,
+  "price_expensive": 50,
+  "price_too_expensive": 100
+}

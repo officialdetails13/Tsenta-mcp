@@ -1,0 +1,222 @@
+[
+ {
+  "id": "P001",
+  "name": "Omar",
+  "age": 18,
+  "segment": "Day 1000 creator (100K-300K followers)",
+  "income": 101000,
+  "behaviour": "Hustler",
+  "behaviour_how": "Pitches brands every week and keeps a rate card in a Notion page or Beacons.",
+  "objection": "Do growth tips actually help or is it generic advice?",
+  "habit": "you have a day job and create in the evenings"
+ },
+ {
+  "id": "P002",
+  "name": "Raj",
+  "age": 26,
+  "segment": "Day 100 creator (5K-100K followers)",
+  "income": 41000,
+  "behaviour": "Has a manager",
+  "behaviour_how": "A manager or agency negotiates deals and takes 15-20%.",
+  "objection": "There are no brands on a new platform",
+  "habit": "you have 3 unanswered brand emails in your inbox"
+ },
+ {
+  "id": "P003",
+  "name": "Emil",
+  "age": 35,
+  "segment": "Day 100 creator (5K-100K followers)",
+  "income": 45000,
+  "behaviour": "Growth-obsessed",
+  "behaviour_how": "Studies analytics, hooks and trends; growing followers matters more than deals right now.",
+  "objection": "Do growth tips actually help or is it generic advice?",
+  "habit": "you keep your rates in a note on your phone"
+ },
+ {
+  "id": "P004",
+  "name": "Owen",
+  "age": 22,
+  "segment": "Day 1000 creator (100K-300K followers)",
+  "income": 124000,
+  "behaviour": "Burned by late payment",
+  "behaviour_how": "Has chased a brand for weeks to get paid.",
+  "objection": "Do growth tips actually help or is it generic advice?",
+  "habit": "you watch other creators' videos to study what is trending"
+ },
+ {
+  "id": "P005",
+  "name": "Sana",
+  "age": 38,
+  "segment": "Day 100 creator (5K-100K followers)",
+  "income": 62000,
+  "behaviour": "Hustler",
+  "behaviour_how": "Pitches brands every week and keeps a rate card in a Notion page or Beacons.",
+  "objection": "Another marketplace taking a cut of my money",
+  "habit": "you have 3 unanswered brand emails in your inbox"
+ },
+ {
+  "id": "P006",
+  "name": "Maya",
+  "age": 39,
+  "segment": "Day 1 creator (under 5K followers)",
+  "income": 48000,
+  "behaviour": "Hustler",
+  "behaviour_how": "Pitches brands every week and keeps a rate card in a Notion page or Beacons.",
+  "objection": "Will brands lowball me?",
+  "habit": "you have 3 unanswered brand emails in your inbox"
+ },
+ {
+  "id": "P007",
+  "name": "Selin",
+  "age": 30,
+  "segment": "Day 1000 creator (100K-300K followers)",
+  "income": 90000,
+  "behaviour": "Growth-obsessed",
+  "behaviour_how": "Studies analytics, hooks and trends; growing followers matters more than deals right now.",
+  "objection": "Will brands lowball me?",
+  "habit": "you have 3 unanswered brand emails in your inbox"
+ },
+ {
+  "id": "P008",
+  "name": "Ruby",
+  "age": 19,
+  "segment": "Day 1 creator (under 5K followers)",
+  "income": 25000,
+  "behaviour": "Already on Collabstr",
+  "behaviour_how": "Has a Collabstr profile and has booked a few deals there.",
+  "objection": "There are no brands on a new platform",
+  "habit": "you have 3 unanswered brand emails in your inbox"
+ },
+ {
+  "id": "P009",
+  "name": "Nora",
+  "age": 23,
+  "segment": "Day 100 creator (5K-100K followers)",
+  "income": 31000,
+  "behaviour": "Hustler",
+  "behaviour_how": "Pitches brands every week and keeps a rate card in a Notion page or Beacons.",
+  "objection": "Do growth tips actually help or is it generic advice?",
+  "habit": "you post 3-5 times a week and check analytics every morning"
+ },
+ {
+  "id": "P010",
+  "name": "Fatima",
+  "age": 21,
+  "segment": "Day 1 creator (under 5K followers)",
+  "income": 18000,
+  "behaviour": "Already on Collabstr",
+  "behaviour_how": "Has a Collabstr profile and has booked a few deals there.",
+  "objection": "There are no brands on a new platform",
+  "habit": "you watch other creators' videos to study what is trending"
+ },
+ {
+  "id": "P011",
+  "name": "Tariq",
+  "age": 21,
+  "segment": "Day 100 creator (5K-100K followers)",
+  "income": 77000,
+  "behaviour": "Inbound only",
+  "behaviour_how": "Waits for brands to email or DM; gets a few offers a month, mostly free product.",
+  "objection": "Do growth tips actually help or is it generic advice?",
+  "habit": "you post 3-5 times a week and check analytics every morning"
+ },
+ {
+  "id": "P012",
+  "name": "Felix",
+  "age": 20,
+  "segment": "Day 1 creator (under 5K followers)",
+  "income": 50000,
+  "behaviour": "Burned by late payment",
+  "behaviour_how": "Has chased a brand for weeks to get paid.",
+  "objection": "Do growth tips actually help or is it generic advice?",
+  "habit": "you have 3 unanswered brand emails in your inbox"
+ },
+ {
+  "id": "P013",
+  "name": "Zoe",
+  "age": 22,
+  "segment": "Day 1000 creator (100K-300K followers)",
+  "income": 118000,
+  "behaviour": "Has a manager",
+  "behaviour_how": "A manager or agency negotiates deals and takes 15-20%.",
+  "objection": "I already have Collabstr and Beacons",
+  "habit": "you watch other creators' videos to study what is trending"
+ },
+ {
+  "id": "P014",
+  "name": "Dev",
+  "age": 29,
+  "segment": "Day 100 creator (5K-100K followers)",
+  "income": 51000,
+  "behaviour": "Burned by late payment",
+  "behaviour_how": "Has chased a brand for weeks to get paid.",
+  "objection": "Another marketplace taking a cut of my money",
+  "habit": "you have 3 unanswered brand emails in your inbox"
+ },
+ {
+  "id": "P015",
+  "name": "Yusuf",
+  "age": 32,
+  "segment": "Day 100 creator (5K-100K followers)",
+  "income": 51000,
+  "behaviour": "Growth-obsessed",
+  "behaviour_how": "Studies analytics, hooks and trends; growing followers matters more than deals right now.",
+  "objection": "I already have Collabstr and Beacons",
+  "habit": "you post 3-5 times a week and check analytics every morning"
+ },
+ {
+  "id": "P016",
+  "name": "Theo",
+  "age": 22,
+  "segment": "Day 1 creator (under 5K followers)",
+  "income": 22000,
+  "behaviour": "Inbound only",
+  "behaviour_how": "Waits for brands to email or DM; gets a few offers a month, mostly free product.",
+  "objection": "I already have Collabstr and Beacons",
+  "habit": "you keep your rates in a note on your phone"
+ },
+ {
+  "id": "P017",
+  "name": "Alma",
+  "age": 33,
+  "segment": "Day 1 creator (under 5K followers)",
+  "income": 49000,
+  "behaviour": "Inbound only",
+  "behaviour_how": "Waits for brands to email or DM; gets a few offers a month, mostly free product.",
+  "objection": "There are no brands on a new platform",
+  "habit": "you watch other creators' videos to study what is trending"
+ },
+ {
+  "id": "P018",
+  "name": "Freya",
+  "age": 18,
+  "segment": "Day 100 creator (5K-100K followers)",
+  "income": 36000,
+  "behaviour": "Growth-obsessed",
+  "behaviour_how": "Studies analytics, hooks and trends; growing followers matters more than deals right now.",
+  "objection": "Do growth tips actually help or is it generic advice?",
+  "habit": "you keep your rates in a note on your phone"
+ },
+ {
+  "id": "P019",
+  "name": "Harper",
+  "age": 22,
+  "segment": "Day 1 creator (under 5K followers)",
+  "income": 44000,
+  "behaviour": "Has a manager",
+  "behaviour_how": "A manager or agency negotiates deals and takes 15-20%.",
+  "objection": "Another marketplace taking a cut of my money",
+  "habit": "you watch other creators' videos to study what is trending"
+ },
+ {
+  "id": "P020",
+  "name": "Emma",
+  "age": 27,
+  "segment": "Day 100 creator (5K-100K followers)",
+  "income": 79000,
+  "behaviour": "Inbound only",
+  "behaviour_how": "Waits for brands to email or DM; gets a few offers a month, mostly free product.",
+  "objection": "Another marketplace taking a cut of my money",
+  "habit": "you keep your rates in a note on your phone"
+ }
+]

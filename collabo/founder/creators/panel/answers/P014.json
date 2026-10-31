@@ -1,0 +1,13 @@
+{
+  "id": "P014",
+  "buys": true,
+  "purchases_first_month": 1,
+  "reason_code": "need",
+  "reason": "I've chased a brand for weeks to get paid, so money sitting in escrow before I lift a finger, with auto-release if they ghost me, actually fixes my biggest headache. It's free to sign up, so I'll list a couple of packages and see if anything books, but I'm not moving my existing brand emails onto it.",
+  "objection": "Another marketplace taking 10% of my money, and you admit there aren't many brands yet. If nobody books me, the escrow doesn't matter, and I'm not giving up $50 on deals I could close myself over email.",
+  "would_change_my_mind": "",
+  "price_too_cheap": 5,
+  "price_cheap": 25,
+  "price_expensive": 60,
+  "price_too_expensive": 100
+}

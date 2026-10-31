@@ -1,0 +1,13 @@
+{
+  "id": "P011",
+  "buys": true,
+  "purchases_first_month": 1,
+  "reason_code": "convenience",
+  "reason": "It's free to join and brands can book me without me pitching, which is exactly how I already work, and escrow beats chasing free-product offers. I'd list a couple of packages and see if anything comes in, but I won't be pitching on briefs much.",
+  "objection": "If there are barely any brands on it, my listing just sits there and I'm not getting booked, and the growth tips are probably the same generic stuff I see everywhere.",
+  "would_change_my_mind": "Seeing real paid bookings for creators my size in the first few weeks; if nothing comes in I stop opening the app.",
+  "price_too_cheap": 0,
+  "price_cheap": 25,
+  "price_expensive": 75,
+  "price_too_expensive": 100
+}

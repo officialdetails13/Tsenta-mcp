@@ -1,0 +1,13 @@
+{
+  "id": "P004",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason": "Dropping $525 on one Reel from a creator whose follower counts and past results nobody has verified is a gamble I can't make on my budget, when I can put that same money into Meta ads and see ROAS within days. The promo code is nice, but it only tells me after the fact whether I wasted the money.",
+  "reason_code": "trust",
+  "objection": "The numbers are self-reported, so I have no way to know if a creator's audience actually buys, and on top of that I don't have time to brief creators and go back and forth approving drafts.",
+  "would_change_my_mind": "Verified follower and sales data from past Collabo deals, like real promo-code redemptions per creator, plus cheaper starter packages around $100-150 so I can test one creator without risking a month of ad spend.",
+  "price_too_cheap": 2,
+  "price_cheap": 10,
+  "price_expensive": 40,
+  "price_too_expensive": 75
+}

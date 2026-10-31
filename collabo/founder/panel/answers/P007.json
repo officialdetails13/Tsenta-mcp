@@ -1,0 +1,13 @@
+{
+  "id": "P007",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "I've never heard of Collabo, and $525 is a big chunk of my monthly budget to hand to a site I don't know and a creator whose follower counts nobody has checked. The escrow sounds nice, but I'd still want to see it work for someone like me before I try it.",
+  "objection": "Is my money actually safe in their escrow, and who decides if a draft is 'good enough' if the creator and I disagree? Plus the numbers are self-reported, so I could pay for fake followers and get no sales.",
+  "would_change_my_mind": "Follower counts and past results verified by Instagram or TikTok, plus a small seller I recognize in my niche saying they got sales from it.",
+  "price_too_cheap": 5,
+  "price_cheap": 15,
+  "price_expensive": 40,
+  "price_too_expensive": 75
+}

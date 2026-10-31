@@ -1,0 +1,13 @@
+{
+  "id": "P019",
+  "buys": true,
+  "purchases_first_month": 1,
+  "reason_code": "trust",
+  "reason": "Twenty-five bucks to have my money held until I've seen the draft and the live post is cheaper than getting burned once by a creator I DM'd who ghosts me. I'd pull one $500 test out of my Meta budget and see if the promo code actually moves covers.",
+  "objection": "The follower counts and past results are just what the creators say, so I could pay $525 to someone with a bought audience and only find out when the promo code does nothing.",
+  "would_change_my_mind": "If the first deal's promo code brings in less than what the same money gets me on Meta ads, I go back to Meta and DMing creators myself.",
+  "price_too_cheap": 5,
+  "price_cheap": 15,
+  "price_expensive": 50,
+  "price_too_expensive": 100
+}

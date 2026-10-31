@@ -1,0 +1,34 @@
+{
+  "business": "Collabo (creator side): a marketplace where creators sell brand-deal packages, get paid through escrow, and get growth tools",
+  "target": "US content creators on Instagram, TikTok or YouTube with 1,000 to 300,000 followers who want paid brand deals",
+  "where": "United States, online",
+  "age": [18, 40],
+  "segments": [
+    {"name": "Day 1 creator (under 5K followers)", "share": 0.35, "income": [18000, 55000]},
+    {"name": "Day 100 creator (5K-100K followers)", "share": 0.45, "income": [25000, 80000]},
+    {"name": "Day 1000 creator (100K-300K followers)", "share": 0.20, "income": [45000, 160000]}
+  ],
+  "behaviours": [
+    {"name": "Inbound only", "share": 0.20, "how": "Waits for brands to email or DM; gets a few offers a month, mostly free product."},
+    {"name": "Hustler", "share": 0.18, "how": "Pitches brands every week and keeps a rate card in a Notion page or Beacons."},
+    {"name": "Burned by late payment", "share": 0.15, "how": "Has chased a brand for weeks to get paid."},
+    {"name": "Already on Collabstr", "share": 0.12, "how": "Has a Collabstr profile and has booked a few deals there."},
+    {"name": "Growth-obsessed", "share": 0.20, "how": "Studies analytics, hooks and trends; growing followers matters more than deals right now."},
+    {"name": "Has a manager", "share": 0.15, "how": "A manager or agency negotiates deals and takes 15-20%."}
+  ],
+  "objections": [
+    "Another marketplace taking a cut of my money",
+    "There are no brands on a new platform",
+    "I already have Collabstr and Beacons",
+    "Will brands lowball me?",
+    "Do growth tips actually help or is it generic advice?",
+    "Escrow sounds good but I don't trust new payment sites"
+  ],
+  "habits": [
+    "you post 3-5 times a week and check analytics every morning",
+    "you have a day job and create in the evenings",
+    "you keep your rates in a note on your phone",
+    "you have 3 unanswered brand emails in your inbox",
+    "you watch other creators' videos to study what is trending"
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "id": "P003",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "I already book creators on a marketplace I know, and this one says right on the page that follower counts and results aren't verified. The escrow and promo codes are nice, but a lower fee doesn't make me switch when the thing I worry about most isn't solved.",
+  "objection": "How do I know their followers are real? If it's all self-reported, I could pay $500 for a Reel that reaches bots, and the money-back only covers a missed deadline, not a fake audience.",
+  "would_change_my_mind": "Follower counts and audience stats pulled directly from Instagram/TikTok and verified, so I can see real reach and engagement before I pay.",
+  "price_too_cheap": 0,
+  "price_cheap": 15,
+  "price_expensive": 50,
+  "price_too_expensive": 75
+}

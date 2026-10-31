@@ -1,0 +1,13 @@
+{
+  "id": "P018",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "convenience",
+  "reason": "The escrow and promo code are smart, but this still leaves me picking creators, briefing them and approving drafts myself, which is exactly the work I don't have time for. And I'd be guessing whether a $500 Reel is a fair price, since the follower counts and results aren't verified.",
+  "objection": "I don't have time to manage creators and approve drafts, and I have no idea how to tell a good creator from one with padded numbers when nothing is verified.",
+  "would_change_my_mind": "If Collabo picked two or three vetted creators for my niche and budget, so I only had to approve one draft and watch the promo code sales in the evening.",
+  "price_too_cheap": 5,
+  "price_cheap": 15,
+  "price_expensive": 50,
+  "price_too_expensive": 100
+}

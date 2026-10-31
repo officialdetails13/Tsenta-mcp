@@ -1,0 +1,13 @@
+{
+  "id": "P003",
+  "buys": true,
+  "purchases_first_month": 1,
+  "reason_code": "need",
+  "reason": "It's free to join and the hook scorer, hook analytics and trend tracking are exactly what I'm obsessing over right now, so I'd sign up for the growth tools and list a package or two. If a deal lands, 10% is fine. I just won't count on many brands showing up yet.",
+  "objection": "The growth stuff could easily be the same generic 'post consistently, hook in 3 seconds' advice I already get free on YouTube, and with only a few brands on there I might not see a single deal.",
+  "would_change_my_mind": "Opening the hook scorer and getting generic feedback that isn't based on my own analytics would make me stop using it.",
+  "price_too_cheap": 5,
+  "price_cheap": 25,
+  "price_expensive": 75,
+  "price_too_expensive": 100
+}
