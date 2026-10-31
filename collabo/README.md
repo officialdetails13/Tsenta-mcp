@@ -18,7 +18,7 @@ Development with hot reload: run `npm run dev:server` and `npm run dev:web` in t
 
 `npm test` runs the API tests. `npm run seed` resets the database to demo data.
 
-**Demo accounts** (password `password123`): `brand@glowlab.co`, `brand@fuelbar.co`, `brand@stackly.app` (brands); `mayaglow@creator.demo`, `emmapaws@creator.demo`, or any `<handle>@creator.demo` (creators).
+**Demo accounts** (password `password123`): `brand@glowlab.co`, `brand@fuelbar.co`, `brand@stackly.app` (brands); `niacooks@creator.demo` (Day 1), `emmapaws@creator.demo` (Day 100), `mayaglow@creator.demo` (Day 1000), or any `<handle>@creator.demo` (creators). GlowLab has a funded deal with Maya waiting on draft review.
 
 ## Deploy to Render
 
@@ -33,9 +33,33 @@ The repo-root `render.yaml` defines a free web service (Node 22, built from `col
 | Discovery | Filter by niche, platform, size, budget, engagement; sort by ROI, rating, reach, price | Public storefront: socials, audience, packages, case studies, reviews |
 | Pricing | See listed prices up front | Rate engine suggests a price per package and flags underpricing against the market median |
 | Briefs | Post campaigns and review pitches | Browse open briefs and pitch a price |
-| Deals | Offer → counter → accept → e-sign → fund escrow → approve / request revision | Same deal room; deliver a live link, chat |
-| Results | Dashboard: spend, revenue, ROAS, top creators | Tracked promo code per deal builds a public track record |
-| Growth | — | New → Rising → Pro → Elite tiers, checklist, rate check, Creator Academy |
+| Deals | Offer → counter → accept → e-sign → deposit into escrow → approve the draft → approve the live post | Same deal room; submit a draft, post, confirm the delivery checklist, chat |
+| Escrow | Funds held before work starts; refund if the deadline is missed; dispute to freeze funds | Money is secured before you start; auto-release if the brand goes silent |
+| Results | Dashboard: spend, money held in escrow, revenue, ROAS, top creators | Tracked promo code per deal builds a public track record |
+| Growth | See creators' posting cadence, engagement and 3s hold | Day 1 / Day 100 / Day 1000 path with missions and playbooks, content analytics, Hook lab, trend tracking, tiers, rate check |
+
+### Escrow rules
+
+| Step | What happens to the money |
+|---|---|
+| Brand deposits | Fee + any performance bonus + 5% service fee go into escrow before work starts. The brand can't cancel after this. |
+| Draft approved | 30% of the fee is released to the creator (minus the 10% platform fee). Auto-approves after **3 days** without a response. |
+| Live post approved | The rest of the fee is released. The creator has to confirm the contract checklist first. Auto-approves after **5 days**. |
+| Performance bonus | Paid when the target is hit. Creators report views; brands report conversions and revenue. Refunded to the brand if the target isn't hit within **30 days** of completion. |
+| Missed deadline | **3 days** after the deadline, the brand can reclaim everything still held. |
+| Dispute | Either side can freeze the funds and propose a split; the other side accepts or counters. Platform mediation: `POST /api/admin/deals/:id/resolve` with header `x-admin-token: $ADMIN_TOKEN` (disabled unless `ADMIN_TOKEN` is set). |
+
+Deadlines are enforced whenever deals are read, so no background job is needed.
+
+### Creator growth stages
+
+| Stage | Followers on biggest platform | Posting target | Focus |
+|---|---|---|---|
+| Day 1: Launch | under 5K | 5 a week | Build the habit, fix hooks, test editing styles, earn with UGC |
+| Day 100: Momentum | 5K–100K | 4 a week | Consistency, finding a winning format, 3s hold, getting in early on trends, first paid deals |
+| Day 1000: Scale | 100K+ | 3 a week | Second platform, sponsored posts that perform like organic ones, repeat brands, pricing |
+
+Recommendations come from the creator's logged posts: frequency against the stage target, filler openers, 3s hold, and the best vs. worst hook type, editing style, format, weekday and length. Trend momentum is measured from posts that all creators log (uses this week vs. last week, and engagement compared with non-trend posts).
 
 Fees: brands pay 5% on top of the deal price; 10% is taken from the creator payout.
 
@@ -45,6 +69,7 @@ Fees: brands pay 5% on top of the deal price; 10% is taken from the creator payo
 server/
   app.js      REST API (auth, creators, packages, campaigns, deals, results, reviews)
   pricing.js  rate engine, market comparison, tier scoring
+  content.js  growth stages, hook analyzer, post analytics, missions, recommendations, trend momentum
   db.js       SQLite schema
   seed.js     demo creators, brands, completed deals and briefs
 web/src/

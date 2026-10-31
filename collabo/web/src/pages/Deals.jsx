@@ -2,9 +2,9 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { api, money } from '../api.js';
 import { useSession } from '../App.jsx';
-import { Avatar, StatusPill, useLoad } from '../ui.jsx';
+import { Avatar, EscrowBadge, StatusPill, useLoad } from '../ui.jsx';
 
-const ACTIVE = ['negotiating', 'contract', 'awaiting_funding', 'in_progress', 'delivered'];
+const ACTIVE = ['negotiating', 'contract', 'awaiting_funding', 'in_progress', 'draft_submitted', 'draft_approved', 'delivered', 'disputed'];
 
 export default function Deals() {
   const { user } = useSession();
@@ -15,9 +15,9 @@ export default function Deals() {
 
   const needsMe = (d) =>
     (d.status === 'negotiating' && d.latest_offer_status === 'pending' && d.latest_offer_from !== user.id) ||
-    d.status === 'contract' ||
-    (user.role === 'business' && ['awaiting_funding', 'delivered'].includes(d.status)) ||
-    (user.role === 'creator' && d.status === 'in_progress');
+    ['contract', 'disputed'].includes(d.status) ||
+    (user.role === 'business' && ['awaiting_funding', 'draft_submitted', 'delivered'].includes(d.status)) ||
+    (user.role === 'creator' && ['in_progress', 'draft_approved'].includes(d.status));
 
   const row = (d) => (
     <Link key={d.id} to={`/deals/${d.id}`} className="list-row">
@@ -28,7 +28,8 @@ export default function Deals() {
       </div>
       <div className="right">
         <b>{money(d.price_cents ?? d.latest_offer_cents)}</b>
-        <div className="row gap">{needsMe(d) && <span className="dot" title="Needs your action" />}<StatusPill status={d.status} /></div>
+        <div className="row gap wrap end">{needsMe(d) && <span className="dot" title="Needs your action" />}<StatusPill status={d.status} /></div>
+        <EscrowBadge cents={d.held_cents} />
       </div>
     </Link>
   );

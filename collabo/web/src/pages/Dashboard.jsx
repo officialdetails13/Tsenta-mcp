@@ -1,12 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { api, compact, money } from '../api.js';
+import { api, money } from '../api.js';
 import { Stat, useLoad } from '../ui.jsx';
 
 export default function Dashboard() {
   const [d] = useLoad(() => api('/business/dashboard'), []);
   if (!d) return <p className="muted">Loading…</p>;
-  const active = ['negotiating', 'contract', 'awaiting_funding', 'in_progress', 'delivered'].reduce((a, s) => a + (d.deals_by_status[s] || 0), 0);
+  const active = ['negotiating', 'contract', 'awaiting_funding', 'in_progress', 'draft_submitted', 'draft_approved', 'delivered', 'disputed'].reduce((a, s) => a + (d.deals_by_status[s] || 0), 0);
 
   return (
     <>
@@ -15,7 +15,7 @@ export default function Dashboard() {
         <Stat label="Total spend" value={money(d.spend_cents)} sub="incl. service fees" />
         <Stat label="Revenue driven" value={money(d.revenue_cents)} sub={`${d.conversions.toLocaleString()} conversions`} />
         <Stat label="ROAS" value={d.roas ? `${d.roas}×` : '—'} sub="revenue ÷ creator fees" />
-        <Stat label="Impressions" value={compact(d.impressions)} sub={`${active} active deals`} />
+        <Stat label="Held in escrow" value={money(d.held_in_escrow_cents)} sub={`${active} active deals`} />
       </section>
       <section className="card">
         <h2>Top creators by revenue</h2>

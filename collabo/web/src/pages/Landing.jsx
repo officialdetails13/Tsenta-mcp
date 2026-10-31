@@ -20,7 +20,16 @@ export default function Landing() {
       <section className="grid3">
         <div className="card"><h3>For brands</h3><p>Filter by niche, platform, audience and engagement. See every creator's past ROI, sales driven and reviews before you spend a dollar.</p></div>
         <div className="card"><h3>For creators</h3><p>Our rate engine compares your reach and engagement to the market so you never undercharge. Level up from Rising to Elite as you deliver.</p></div>
-        <div className="card"><h3>Safe deals</h3><p>Offer and counter-offer, an auto-generated contract, e-signatures, escrow, and a tracked promo code on every deal.</p></div>
+        <div className="card"><h3>Escrow on every deal</h3><p>Brands deposit before work starts. Creators know the money is real; brands approve the draft and the live post before it’s released.</p></div>
+      </section>
+
+      <section className="card">
+        <h2>How escrow protects both sides</h2>
+        <div className="grid3 escrow-explainer">
+          <div><b>🔒 Money on the table</b><p className="small">The brand deposits the full fee, plus any performance bonus, before the creator starts. Neither side can withdraw it on their own.</p></div>
+          <div><b>✓ Content you approved</b><p className="small">The creator submits a draft first. 30% is released on draft approval and 70% once the live post passes the contract checklist.</p></div>
+          <div><b>⚖ Fair if things go wrong</b><p className="small">Silent brands auto-approve after 3–5 days. Missed deadlines get refunded. Disputes freeze funds until both sides agree a split.</p></div>
+        </div>
       </section>
 
       <RateEstimator />
@@ -31,8 +40,9 @@ export default function Landing() {
           <li><b>Discover or post a brief.</b> Brands browse creators or post a campaign that creators pitch on.</li>
           <li><b>Negotiate.</b> Offers and counter-offers on price, deliverables and deadline.</li>
           <li><b>Sign.</b> A contract covering FTC disclosure, usage rights and the promo code is generated and signed by both sides.</li>
-          <li><b>Escrow.</b> The brand funds the deal; the money is held until delivery is approved.</li>
-          <li><b>Deliver and measure.</b> The creator posts; sales from the promo code build their track record.</li>
+          <li><b>Escrow.</b> The brand deposits the fee (and any performance bonus) before work starts.</li>
+          <li><b>Draft approval.</b> The creator shares a draft; approval releases 30%.</li>
+          <li><b>Post and measure.</b> The live post passes the checklist and the rest is released. Promo-code sales build the creator’s track record.</li>
         </ol>
       </section>
     </>

@@ -13,6 +13,8 @@ A marketplace that serves both sides, on the Fiverr model:
 - **Proof, not just reach.** Every deal gets a promo code. The sales it drives become part of the creator's public track record: revenue driven, ROI, on-time rate, reviews. No DM or follower count can show this, and it's what keeps both sides on the platform.
 - **Price transparency.** The rate engine (platform rates per thousand followers × engagement vs. benchmark × format × niche demand), blended with the market median from comparable listings, tells creators what they're worth. Brands see prices up front.
 - **Trust rails.** Structured offers and counter-offers, an auto-generated contract (FTC disclosure, usage rights, revisions), e-signatures, escrow, and approval before payout.
+- **Escrow that protects both sides.** Brands deposit before work starts, so the money is guaranteed. A draft-approval step and a delivery checklist guarantee the content. Auto-release, late refunds, performance bonuses and disputes cover the cases where things go wrong.
+- **Growth path for every stage.** Day 1, Day 100 and Day 1000 creators get different missions, playbooks and posting targets. A content log feeds analytics on hooks, editing styles, formats, timing and trends, which turn into specific next steps.
 - **Leveling up.** Tiers need both a score and completed deals, so a polished profile alone can't reach the top. The Academy and rate check show creators how to earn more.
 
 ## Business model
@@ -30,8 +32,9 @@ Everything in the README table: both roles, discovery, profiles, packages, the r
 
 ## Roadmap to production
 1. **Verified socials.** OAuth with the Instagram Graph API, TikTok and YouTube Data APIs to pull real follower, engagement and audience data and flag fake followers. Today's numbers are self-reported.
-2. **Real payments.** Stripe Connect (escrow via separate charges and transfers, creator KYC, 1099s). The `transactions` table already models the ledger.
-3. **Sales attribution.** Shopify/WooCommerce apps and UTM links so promo-code sales are reported automatically instead of typed in.
-4. **Infrastructure.** Move SQLite to Postgres, add search indexing for discovery, file uploads for portfolios and deliverables, email and push notifications, and a dispute/mediation flow.
-5. **Native apps.** Wrap the PWA with Capacitor for App Store and Play Store listings, adding native push and camera upload.
-6. **AI assist.** Brief-to-creator matching, contract Q&A, and creative feedback on draft content.
+2. **Real payments.** Stripe Connect: charge into the platform balance on deposit, transfer on each release, refund for refunds (plus creator identity checks and 1099s). The `transactions` ledger already records every one of those movements.
+3. **Automatic post sync.** Pull posts, retention and trending sounds from platform APIs instead of manual logging; optional AI hook rewrites and video-level feedback.
+4. **Sales attribution.** Shopify/WooCommerce apps and UTM links so promo-code sales are reported automatically instead of typed in.
+5. **Infrastructure.** Move SQLite to Postgres, add search indexing for discovery, file uploads for portfolios and deliverables, email and push notifications, and a dispute/mediation flow.
+6. **Native apps.** Wrap the PWA with Capacitor for App Store and Play Store listings, adding native push and camera upload.
+7. **AI assist.** Brief-to-creator matching, contract Q&A, and creative feedback on draft content.

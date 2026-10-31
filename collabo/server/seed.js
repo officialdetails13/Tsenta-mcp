@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import { hashPassword } from './auth.js';
 import { openDb } from './db.js';
+import { analyzeHook } from './content.js';
 
 export const DEMO_PASSWORD = 'password123';
 
@@ -60,6 +61,11 @@ const CREATORS = [
     audience: { age: '25-34', female_pct: 76, top_country: 'US' },
     socials: [['instagram', 'emmapaws', 22000, 6.8, 8000], ['tiktok', 'emmapaws', 64000, 9.0, 22000]],
     packages: [['Husky review TikTok', 'tiktok', 'video', 1, 600, 5], ['Product Reel', 'instagram', 'reel', 1, 350, 5], ['UGC pet content (5 clips)', 'any', 'ugc', 1, 200, 7]] },
+  { name: 'Nia Okoye', handle: 'niacooks', loc: 'Houston, TX', color: '#c2410c', niches: ['food'],
+    bio: 'Student cooking cheap, fast dinners. Just getting started!',
+    audience: {},
+    socials: [['tiktok', 'niacooks', 1800, 6.5, 900], ['instagram', 'niacooks', 420, 4.0, 150]],
+    packages: [], day1: true },
   { name: 'Ravi Shah', handle: 'ravibeats', loc: 'Brooklyn, NY', color: '#dc2626', niches: ['music', 'tech'],
     bio: 'Producer breaking down beats and studio gear. Great fit for audio, music software and creator tools.',
     audience: { age: '18-24', female_pct: 22, top_country: 'US' },
@@ -92,14 +98,93 @@ const PAST_DEALS = [
   [0, 'hannahathome', 'Carousel product roundup', 1000, 1800, 45, 41000, 5, 'Her audience trusts her.', 18],
 ];
 
+const TRENDS = [
+  // [platform, kind, name, description, how_to, niches, peak (days ago; negative = still climbing)]
+  ['tiktok', 'sound', 'Sped-up throwback audio', 'Sped-up versions of 2000s hits used under quick before/after reveals.', 'Cut to the beat drop at about 2s, then show the reveal on the drop.', [], -3],
+  ['tiktok', 'format', 'Day-in-the-life with timestamps', 'Clips stamped with the time of day, ending on a payoff moment.', 'Use 6–8 clips of 2–3s each with large timestamps, and end on the most satisfying shot.', ['food', 'fitness', 'lifestyle', 'parenting'], 4],
+  ['instagram', 'edit', 'Match-cut outfit transitions', 'Hand-over-lens or spin transitions between looks, cut on the beat.', 'Film each look from the same tripod spot and cut on the motion, not after it.', ['fashion', 'beauty'], 5],
+  ['instagram', 'format', 'Photo-dump carousel', 'Casual 10-slide carousels with one standout first image.', 'Lead with your best image; slide 2 should make people keep swiping.', [], 30],
+  ['youtube', 'format', '“I tested it for 30 days”', 'Long-term test videos with a clear verdict at the end.', 'Show the final result in the first 10 seconds, then tell the story of how you got there.', [], 9],
+  ['tiktok', 'topic', 'Underconsumption core', 'Showing what you didn’t buy, with frugal swaps and use-it-up content.', 'Open with what people expect to see you buy, then show the cheaper or free alternative.', ['finance', 'lifestyle', 'home', 'food'], -2],
+  ['instagram', 'sound', 'Lo-fi voiceover storytelling', 'Calm voiceover over slow b-roll, told like a mini story.', 'Write the voiceover first, then cut b-roll to every sentence break.', ['travel', 'lifestyle', 'food', 'home'], 7],
+  ['tiktok', 'edit', 'Green-screen reply to comments', 'Answering a viewer comment with it shown on screen behind you.', 'Pick comments that let you teach something; give the answer in the first sentence.', [], 28],
+  ['youtube', 'format', '60-second speed-run tutorial', 'A full how-to in under a minute, with a timer on screen.', 'Show the finished result first, then race the clock to rebuild it.', ['tech', 'education', 'gaming', 'music'], 1],
+  ['instagram', 'format', 'GRWM + story time', 'Get-ready-with-me filmed while telling a personal story.', 'Start with the most dramatic line of the story, not the first step of the routine.', ['beauty', 'fashion', 'lifestyle'], 14],
+];
+
+const TOPIC = { beauty: 'skincare', fashion: 'outfit', fitness: 'workout', food: 'dinner', travel: 'packing', tech: 'desk setup', gaming: 'gaming setup',
+  finance: 'budget', parenting: 'toddler', home: 'living room', pets: 'dog', music: 'beat', comedy: 'roommate', lifestyle: 'morning routine', education: 'study' };
+const STRONG_HOOKS = ['Stop doing this with your {t}', 'I tried a new {t} for 30 days. Here’s what happened', '3 {t} mistakes you’re probably making',
+  'Why does nobody talk about this {t} trick?', 'If you hate your {t}, watch this', 'The {t} secret nobody tells you', 'I spent $20 on my {t}. Worth it?',
+  'You’re doing your {t} wrong', '5 {t} hacks that actually work'];
+const WEAK_HOOKS = ['Hey guys, so today I wanted to show you my {t}', 'So this is my {t}', 'My {t} update', 'Hi everyone! Welcome back to my channel, today it’s all about {t}',
+  'Just a quick little {t} video for you all today, hope you enjoy it', 'Here is my {t}'];
+const EDIT_MULT = { 'jump cuts': 1.3, 'voiceover + b-roll': 1.15, 'text on screen': 1.1, transitions: 1.05, 'green screen': 1.0, 'talking head': 0.78 };
+const REACH = { tiktok: 0.32, instagram: 0.2, youtube: 0.35, x: 0.12, twitch: 0.06 };
+const FORMAT = { tiktok: ['video'], instagram: ['reel', 'reel', 'reel', 'carousel'], youtube: ['short', 'short', 'video'], x: ['post', 'thread'], twitch: ['live'] };
+
+// Small deterministic PRNG so the demo data is the same on every seed.
+function rng(seed) {
+  let a = seed;
+  return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+
+function seedPosts(ins, creatorId, c, trendIds, index) {
+  const r = rng(1000 + index);
+  const pick = (xs) => xs[Math.floor(r() * xs.length)];
+  const topic = TOPIC[c.niches[0]] ?? 'content';
+  const maxF = Math.max(...c.socials.map((s) => s.followers));
+  const weakShare = c.day1 ? 0.7 : maxF < 100000 ? 0.4 : 0.2;
+  // Day-1 creators post irregularly; established creators keep a rhythm.
+  const perWeek = c.day1 ? [1, 3, 2, 4, 1, 2, 3, 2, 1] : maxF < 100000 ? [3, 4, 5, 4, 3, 4, 5, 4, 2] : [3, 4, 3, 4, 3, 4, 3, 3, 3];
+  const styles = c.day1 ? ['talking head', 'talking head', 'talking head', 'text on screen'] : Object.keys(EDIT_MULT);
+  for (let w = 0; w < 9; w++) {
+    for (let k = 0; k < perWeek[w]; k++) {
+      const daysAgo = w * 7 + Math.floor(r() * 7);
+      const social = r() < 0.65 ? c.socials[0] : pick(c.socials);
+      const platform = social.platform;
+      const hook = pick(r() < weakShare ? WEAK_HOOKS : STRONG_HOOKS).replace('{t}', topic);
+      const style = pick(styles);
+      const format = pick(FORMAT[platform]);
+      const duration = format === 'video' && platform === 'youtube' ? 420 + Math.floor(r() * 600) : format === 'live' ? 7200 : 12 + Math.floor(r() * 50);
+      // Trends are picked in proportion to how hot they were on the post date.
+      let trendId = null, trendMult = 1;
+      const candidates = TRENDS.map((t, i) => ({ t, id: trendIds[i] })).filter(({ t }) => t[0] === platform && (!t[5].length || t[5].some((n) => c.niches.includes(n))));
+      if (candidates.length && r() < 0.55) {
+        const weights = candidates.map(({ t }) => Math.exp(-((daysAgo - t[6]) ** 2) / (2 * 6 ** 2)));
+        let x = r() * weights.reduce((a, b) => a + b, 0);
+        const chosen = candidates.find((_, i) => (x -= weights[i]) <= 0);
+        if (chosen && weights[candidates.indexOf(chosen)] > 0.05) { trendId = chosen.id; trendMult = 1.35; }
+      }
+      const score = analyzeHook({ hook }).score;
+      const hold = Math.round(Math.min(92, Math.max(18, 22 + score * 0.55 + (r() - 0.5) * 16)));
+      const quality = (score / 65) ** 1.4 * EDIT_MULT[style] * trendMult * (0.65 + r() * 0.7) * (daysAgo % 7 === 2 ? 1.25 : 1);
+      const views = Math.max(40, Math.round(social.followers * REACH[platform] * quality));
+      const er = social.engagement_rate * Math.sqrt(EDIT_MULT[style] * trendMult) * (0.8 + r() * 0.4);
+      const eng = views * er / 100;
+      ins(`INSERT INTO posts (creator_id, platform, format, posted_at, hook, edit_style, duration_s, views, likes, comments, shares, saves, hold_3s_pct, trend_id, sponsored, url)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        creatorId, platform, format, new Date(Date.now() - daysAgo * 864e5).toISOString().slice(0, 10), hook, style, duration, views,
+        Math.round(eng * 0.75), Math.round(eng * 0.08), Math.round(eng * 0.09), Math.round(eng * 0.08), r() < 0.85 ? hold : null, trendId,
+        !c.day1 && r() < 0.1 ? 1 : 0, '');
+    }
+  }
+}
+
 const daysAgo = (n) => new Date(Date.now() - n * 864e5).toISOString().slice(0, 19).replace('T', ' ');
 const dateIn = (n) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
+
+export function seedTrends(db) {
+  return TRENDS.map(([platform, kind, name, description, how_to, niches]) => Number(db.prepare('INSERT INTO trends (platform, kind, name, description, how_to, niches) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(platform, kind, name, description, how_to, JSON.stringify(niches)).lastInsertRowid));
+}
 
 export function seed(db) {
   const pw = hashPassword(DEMO_PASSWORD);
   const ins = (sql, ...args) => Number(db.prepare(sql).run(...args).lastInsertRowid);
   db.exec('BEGIN');
   try {
+    const trendIds = seedTrends(db);
     const creatorIds = {};
     const pkgIds = {};
     for (const c of CREATORS) {
@@ -110,6 +195,7 @@ export function seed(db) {
       for (const [platform, handle, followers, er, views] of c.socials) {
         ins('INSERT INTO socials (creator_id, platform, handle, followers, engagement_rate, avg_views) VALUES (?, ?, ?, ?, ?, ?)', id, platform, handle, followers, er, views);
       }
+      seedPosts(ins, id, { ...c, socials: c.socials.map(([platform, , followers, engagement_rate]) => ({ platform, followers, engagement_rate })) }, trendIds, CREATORS.indexOf(c));
       for (const [title, platform, type, qty, price, days] of c.packages) {
         pkgIds[`${c.handle}|${title}`] = ins(`INSERT INTO packages (creator_id, title, platform, deliverable_type, quantity, price_cents, turnaround_days, description)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, id, title, platform, type, qty, price * 100, days, `${qty}× ${type} on ${platform === 'any' ? 'your channels' : platform}. Includes one round of revisions and the promo code in the caption.`);
@@ -149,6 +235,24 @@ export function seed(db) {
     ins('INSERT INTO offers (deal_id, from_user_id, price_cents, deliverables, deadline, note, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       live, creatorIds.aaliyahstyle, 260000, '1× TikTok try-on + 1 story with link sticker', dateIn(14), "I can do $2,600 and add a story with a link sticker. Happy to discount a 3-month package.", 'pending', daysAgo(1));
 
+    // A funded deal with a performance bonus, waiting on the brand to review the draft.
+    const escrowDeal = ins(`INSERT INTO deals (business_id, creator_id, package_id, title, status, price_cents, deliverables, deadline, promo_code, contract_text, checklist,
+        bonus_cents, bonus_metric, bonus_target, bonus_status, business_signed_at, creator_signed_at, funded_at, draft_url, draft_note, draft_submitted_at, created_at, updated_at)
+      VALUES (?, ?, ?, ?, 'draft_submitted', 220000, ?, ?, 'MAYAGLOW42', ?, ?, 30000, 'views', 150000, 'held', ?, ?, ?, ?, ?, ?, ?, ?)`,
+      bizIds[0], creatorIds.mayaglow, pkgIds['mayaglow|Skincare Reel feature'], 'Night serum launch Reel', '1× Instagram Reel featuring the GlowLab night serum', dateIn(9),
+      'INFLUENCER SERVICES AGREEMENT (seeded): includes escrow, draft approval and a $300 bonus at 150,000 views.',
+      JSON.stringify(['Deliverables match the contract: 1× Instagram Reel featuring the GlowLab night serum', 'Promo code MAYAGLOW42 appears in the caption or on screen',
+        'Sponsorship is disclosed (#ad or the platform’s paid-partnership label)', `Content went live on or before ${dateIn(9)}`, 'Content stays live for at least 30 days'].map((text) => ({ text, confirmed: false }))),
+      daysAgo(6), daysAgo(6), daysAgo(5), 'https://drive.example.com/maya-serum-draft.mp4', 'Draft cut. Happy to swap the opening shot if you prefer the bottle close-up.', daysAgo(1), daysAgo(7), daysAgo(1));
+    ins('INSERT INTO offers (deal_id, from_user_id, price_cents, deliverables, deadline, bonus_cents, bonus_metric, bonus_target, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      escrowDeal, bizIds[0], 220000, '1× Instagram Reel featuring the GlowLab night serum', dateIn(9), 30000, 'views', 150000, 'accepted', daysAgo(7));
+    ins('INSERT INTO transactions (deal_id, type, amount_cents, note, created_at) VALUES (?, ?, ?, ?, ?)', escrowDeal, 'escrow_fund', 220000, '', daysAgo(5));
+    ins('INSERT INTO transactions (deal_id, type, amount_cents, note, created_at) VALUES (?, ?, ?, ?, ?)', escrowDeal, 'bonus_fund', 30000, 'bonus', daysAgo(5));
+    ins('INSERT INTO transactions (deal_id, type, amount_cents, note, created_at) VALUES (?, ?, ?, ?, ?)', escrowDeal, 'buyer_fee', 12500, '', daysAgo(5));
+    for (const [body, ago] of [['Escrow funded: $2,500.00 is secured (including a $300.00 performance bonus). The creator can start.', 5], ['Maya Chen submitted a draft for review. The brand has 3 days to respond.', 1]]) {
+      ins('INSERT INTO messages (deal_id, body, system, created_at) VALUES (?, ?, 1, ?)', escrowDeal, body, daysAgo(ago));
+    }
+
     const campaigns = [
       [0, 'Summer SPF launch: 10 creators', 'We are launching a mineral SPF in June. We want honest first-impression videos showing texture and no white cast. Include code for 20% off.', 15000, ['beauty', 'lifestyle'], ['tiktok', 'instagram'], 30],
       [1, 'Gym-bag snack challenge', 'Show FuelBar as your pre- or post-workout snack in a real training session. Bonus for recipes using crumbled bars.', 6000, ['fitness', 'food'], ['youtube', 'instagram', 'tiktok'], 21],
@@ -167,7 +271,7 @@ export function seed(db) {
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const db = openDb();
-  for (const t of ['transactions', 'reviews', 'results', 'messages', 'offers', 'deals', 'campaigns', 'packages', 'socials', 'creators', 'businesses', 'users']) db.exec(`DELETE FROM ${t}`);
+  for (const t of ['transactions', 'reviews', 'results', 'messages', 'offers', 'deals', 'campaigns', 'posts', 'trends', 'packages', 'socials', 'creators', 'businesses', 'users']) db.exec(`DELETE FROM ${t}`);
   seed(db);
   console.log(`Seeded. Log in as brand@glowlab.co or mayaglow@creator.demo with password "${DEMO_PASSWORD}".`);
 }

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { compact } from './api.js';
+import { compact, money } from './api.js';
 
 export const PLATFORM_LABEL = { instagram: 'Instagram', tiktok: 'TikTok', youtube: 'YouTube', x: 'X', twitch: 'Twitch', any: 'Any channel' };
 const PLATFORM_ABBR = { instagram: 'IG', tiktok: 'TT', youtube: 'YT', x: 'X', twitch: 'TW', any: 'UGC' };
@@ -19,8 +19,9 @@ export const TierBadge = ({ tier }) => <span className={`tier tier-${tier.toLowe
 
 const STATUS = {
   negotiating: ['Negotiating', 'amber'], contract: ['Sign contract', 'blue'], awaiting_funding: ['Awaiting funding', 'blue'],
-  in_progress: ['In progress', 'violet'], delivered: ['Delivered: review', 'violet'], completed: ['Completed', 'green'],
-  declined: ['Declined', 'gray'], cancelled: ['Cancelled', 'gray'],
+  in_progress: ['Funded: in progress', 'violet'], draft_submitted: ['Draft in review', 'violet'], draft_approved: ['Draft approved: post it', 'violet'],
+  delivered: ['Live: final review', 'violet'], completed: ['Completed', 'green'], disputed: ['Disputed: funds frozen', 'red'],
+  resolved: ['Resolved', 'gray'], refunded: ['Refunded', 'gray'], declined: ['Declined', 'gray'], cancelled: ['Cancelled', 'gray'],
 };
 export const StatusPill = ({ status }) => <span className={`pill pill-${STATUS[status]?.[1]}`}>{STATUS[status]?.[0] ?? status}</span>;
 
@@ -77,4 +78,8 @@ export function NicheChips({ all, value, onChange }) {
       {all.map((n) => <button type="button" key={n} className={`chip selectable ${value.includes(n) ? 'on' : ''}`} onClick={() => toggle(n)}>{n}</button>)}
     </div>
   );
+}
+
+export function EscrowBadge({ cents }) {
+  return cents > 0 ? <span className="escrow-badge" title="Held by the platform until the work is approved">🔒 {money(cents)} in escrow</span> : null;
 }

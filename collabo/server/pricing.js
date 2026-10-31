@@ -21,7 +21,7 @@ export const NICHES = [
 const BASE_CPM = { instagram: 10, tiktok: 8, youtube: 20, x: 3, twitch: 12 };
 
 // Typical engagement rate (%) per platform; beating it earns a premium.
-const BENCHMARK_ER = { instagram: 2.0, tiktok: 5.0, youtube: 4.0, x: 1.0, twitch: 3.0 };
+export const BENCHMARK_ER = { instagram: 2.0, tiktok: 5.0, youtube: 4.0, x: 1.0, twitch: 3.0 };
 
 const DELIVERABLE_MULT = {
   post: 1, reel: 1.25, story: 0.4, carousel: 1.1, video: 1, live: 1.4,

@@ -24,7 +24,7 @@ export default function Studio() {
       <section className="stats-row">
         <div className="stat"><div className="stat-value"><TierBadge tier={growth.tier} /></div><div className="stat-label">{growth.next_tier ? toNext(growth) : 'Top tier'}</div></div>
         <div className="stat"><div className="stat-value">{money(growth.earnings_cents)}</div><div className="stat-label">Earned</div></div>
-        <div className="stat"><div className="stat-value">{money(growth.pipeline_cents)}</div><div className="stat-label">In pipeline</div></div>
+        <div className="stat"><div className="stat-value">{money(growth.secured_cents)}</div><div className="stat-label">🔒 Secured in escrow</div><div className="stat-sub">{money(growth.pipeline_cents)} more awaiting deposit</div></div>
         <div className="stat"><div className="stat-value">{compact(c.total_followers)}</div><div className="stat-label">Total reach</div></div>
       </section>
 

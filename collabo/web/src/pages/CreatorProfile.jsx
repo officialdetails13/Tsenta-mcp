@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, compact, inDays, money } from '../api.js';
 import { useSession } from '../App.jsx';
 import { Avatar, ErrorNote, Modal, PLATFORM_LABEL, Platform, Stars, Stat, TierBadge, useAction, useLoad } from '../ui.jsx';
+import { BonusFields } from './DealRoom.jsx';
 
 export default function CreatorProfile() {
   const { id } = useParams();
@@ -78,6 +79,19 @@ export default function CreatorProfile() {
         </div>
       </div>
 
+      {c.content_stats && (
+        <section className="card">
+          <h2>Content activity</h2>
+          <p className="muted small">From the creator’s logged posts over the last 30 days.</p>
+          <div className="stats-row compact">
+            <div className="stat"><div className="stat-value">{c.content_stats.posts_per_week}</div><div className="stat-label">Posts / week</div></div>
+            <div className="stat"><div className="stat-value">{c.content_stats.avg_er}%</div><div className="stat-label">Avg engagement</div></div>
+            <div className="stat"><div className="stat-value">{compact(c.content_stats.avg_views)}</div><div className="stat-label">Avg views</div></div>
+            <div className="stat"><div className="stat-value">{c.content_stats.avg_hold_3s != null ? `${c.content_stats.avg_hold_3s}%` : '—'}</div><div className="stat-label">3-second hold</div></div>
+          </div>
+        </section>
+      )}
+
       {c.case_studies.length > 0 && (
         <section className="card">
           <h2>Proven results</h2>
@@ -113,7 +127,7 @@ function OfferModal({ creator, pkg, onClose }) {
     price: pkg ? pkg.price_cents / 100 : '',
     deliverables: pkg ? `${pkg.quantity}× ${PLATFORM_LABEL[pkg.platform]} ${pkg.deliverable_type}: ${pkg.title}` : '',
     deadline: inDays(Math.max(7, (pkg?.turnaround_days ?? 7) + 3)),
-    note: '',
+    note: '', bonus: '', bonus_metric: 'views', bonus_target: '',
   });
   const { busy, error, run } = useAction();
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
@@ -134,8 +148,10 @@ function OfferModal({ creator, pkg, onClose }) {
           <label>Go-live deadline<input type="date" required value={f.deadline} onChange={set('deadline')} /></label>
         </div>
         {pkg && Number(f.price) < pkg.price_cents / 100 && <div className="hint">You're offering below the listed {money(pkg.price_cents)}. The creator can accept or counter.</div>}
+        <BonusFields f={f} set={set} />
         <label>Message<textarea rows={3} value={f.note} onChange={set('note')} placeholder="Tell them about your brand and goals" /></label>
         <ErrorNote error={error} />
+        <p className="small muted">🔒 Nothing is charged now. Once the creator accepts and you both sign, you deposit the fee into escrow. It's released only as you approve the draft and the live post.</p>
         <button className="btn" disabled={busy}>Send offer</button>
       </form>
     </Modal>
