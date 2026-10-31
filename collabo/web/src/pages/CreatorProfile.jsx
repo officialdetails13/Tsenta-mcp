@@ -1,15 +1,20 @@
-import React, { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { api, compact, inDays, money } from '../api.js';
+import React, { useEffect, useState } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { api, compact, money } from '../api.js';
 import { useSession } from '../App.jsx';
 import { Avatar, ErrorNote, Modal, PLATFORM_LABEL, Platform, Stars, Stat, TierBadge, useAction, useLoad } from '../ui.jsx';
-import { BonusFields } from './DealRoom.jsx';
+import OfferBuilder, { itemFromPackage, itemsFromDeal } from '../OfferBuilder.jsx';
 
 export default function CreatorProfile() {
   const { id } = useParams();
   const { user } = useSession();
   const [c, , , error] = useLoad(() => api(`/creators/${id}`), [id]);
   const [offerFor, setOfferFor] = useState(null);
+  const [params, setParams] = useSearchParams();
+  const rebookId = params.get('rebook');
+  useEffect(() => {
+    if (rebookId && user?.role === 'business') api(`/deals/${rebookId}`).then((d) => setOfferFor({ rebook: d })).catch(() => {});
+  }, [rebookId, user?.role]);
   if (error) return <p className="error">{error}</p>;
   if (!c) return <p className="muted">Loading…</p>;
   const canBuy = user?.role === 'business';
@@ -115,45 +120,26 @@ export default function CreatorProfile() {
         ))}
       </section>
 
-      {offerFor && <OfferModal creator={c} pkg={offerFor.pkg} onClose={() => setOfferFor(null)} />}
+      {offerFor && <OfferModal creator={c} pkg={offerFor.pkg} rebook={offerFor.rebook} onClose={() => { setOfferFor(null); if (rebookId) setParams({}, { replace: true }); }} />}
     </>
   );
 }
 
-function OfferModal({ creator, pkg, onClose }) {
+function OfferModal({ creator, pkg, rebook, onClose }) {
+  const { meta } = useSession();
   const navigate = useNavigate();
-  const [f, setF] = useState({
-    title: pkg?.title ?? '',
-    price: pkg ? pkg.price_cents / 100 : '',
-    deliverables: pkg ? `${pkg.quantity}× ${PLATFORM_LABEL[pkg.platform]} ${pkg.deliverable_type}: ${pkg.title}` : '',
-    deadline: inDays(Math.max(7, (pkg?.turnaround_days ?? 7) + 3)),
-    note: '', bonus: '', bonus_metric: 'views', bonus_target: '',
-  });
   const { busy, error, run } = useAction();
-  const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
-  const submit = (e) => {
-    e.preventDefault();
-    run(async () => {
-      const d = await api('/deals', { method: 'POST', body: { ...f, creator_id: creator.id, package_id: pkg?.id } });
-      navigate(`/deals/${d.id}`);
-    });
-  };
+  const initial = rebook
+    ? { title: rebook.title, items: itemsFromDeal(rebook.items), terms: rebook.terms, note: 'Booking you again: same deliverables as last time.' }
+    : { title: pkg?.title ?? '', items: pkg ? [itemFromPackage(meta, pkg)] : undefined };
+  const submit = (body) => run(async () => {
+    const d = await api('/deals', { method: 'POST', body: { ...body, title: body.title || pkg?.title || initial.title, creator_id: creator.id, package_id: pkg?.id } });
+    navigate(`/deals/${d.id}`);
+  });
   return (
-    <Modal title={pkg ? `Request: ${pkg.title}` : `Custom offer to ${creator.name}`} onClose={onClose}>
-      <form className="stack" onSubmit={submit}>
-        {!pkg && <label>Title<input required value={f.title} onChange={set('title')} placeholder="e.g. Spring launch Reel" /></label>}
-        <label>Deliverables<textarea required rows={3} value={f.deliverables} onChange={set('deliverables')} /></label>
-        <div className="form-grid">
-          <label>Your offer (USD)<input type="number" min="1" step="1" required value={f.price} onChange={set('price')} /></label>
-          <label>Go-live deadline<input type="date" required value={f.deadline} onChange={set('deadline')} /></label>
-        </div>
-        {pkg && Number(f.price) < pkg.price_cents / 100 && <div className="hint">You're offering below the listed {money(pkg.price_cents)}. The creator can accept or counter.</div>}
-        <BonusFields f={f} set={set} />
-        <label>Message<textarea rows={3} value={f.note} onChange={set('note')} placeholder="Tell them about your brand and goals" /></label>
-        <ErrorNote error={error} />
-        <p className="small muted">🔒 Nothing is charged now. Once the creator accepts and you both sign, you deposit the fee into escrow. It's released only as you approve the draft and the live post.</p>
-        <button className="btn" disabled={busy}>Send offer</button>
-      </form>
+    <Modal title={rebook ? `Rebook ${creator.name}` : pkg ? `Request: ${pkg.title}` : `Custom offer to ${creator.name}`} onClose={onClose}>
+      <OfferBuilder creatorId={creator.id} initial={initial} showTitle={!pkg} busy={busy} error={error} onSubmit={submit} />
+      <p className="small muted">🔒 Nothing is charged now. When the creator accepts and you both sign, you deposit the fee into escrow. It’s released as you approve the draft and the live post.</p>
     </Modal>
   );
 }

@@ -341,3 +341,77 @@ a.list-row:hover { border-color: var(--brand); }
 .flow-offpath.disputed { background: var(--red-soft); color: var(--red); }
 .demo-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-radius: 12px; background: var(--brand-soft); border: 1px dashed var(--brand); }
 .demo-start { display: flex; flex-direction: column; gap: 12px; }
+
+/* offer builder */
+.builder-box { border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; margin: 0; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.builder-box legend { font-weight: 700; font-size: .9rem; padding: 0 6px; }
+.item-row { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 10px; background: var(--surface-2); }
+.item-head { display: flex; justify-content: space-between; align-items: center; }
+.len-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.len-chips .label { margin-right: 4px; }
+.hint-btn { align-self: flex-start; border: 0; background: none; color: var(--brand); font: inherit; font-size: .75rem; padding: 0; cursor: pointer; font-weight: 600; }
+.table.quote td { padding: 6px 8px; }
+.table.quote tr.sub td, .table.quote tr.total td { font-weight: 700; border-top: 2px solid var(--border); }
+.table.quote tr.grand td { font-size: 1.05rem; }
+.table.compact td { padding: 4px 6px; font-size: .82rem; }
+.offer-price { font-size: 1.1rem; }
+.offer { max-width: 100%; }
+.terms-list { margin: 4px 0 0; padding-left: 18px; font-size: .82rem; }
+
+/* contract */
+.sig-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+.sig { border: 1px dashed var(--border); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+.sig.done { border-style: solid; border-color: var(--green); }
+.sig-name, .sig-preview { font-family: "Brush Script MT", "Segoe Script", "Snell Roundhand", cursive; font-size: 1.5rem; line-height: 1.2; color: var(--text); }
+.sig-preview { border-bottom: 1px solid var(--border); padding: 4px 0; }
+.contract-doc { list-style: none; padding: 0; margin: 0 0 12px; display: flex; flex-direction: column; gap: 10px; max-height: 460px; overflow: auto; padding-right: 4px; }
+.contract-doc h4 { margin: 0 0 2px; font-size: .92rem; }
+.contract-doc p { margin: 0 0 4px; font-size: .88rem; color: var(--muted); }
+.sign-box { display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 12px; background: var(--brand-soft); }
+
+/* payment */
+.pay-methods { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.pay-method { flex-direction: row; align-items: flex-start; gap: 10px; padding: 12px; border: 2px solid var(--border); border-radius: 12px; cursor: pointer; color: var(--text); }
+.pay-method span { display: flex; flex-direction: column; gap: 2px; }
+.pay-method.on { border-color: var(--brand); background: var(--brand-soft); }
+.pay-method input { width: auto; margin-top: 3px; accent-color: var(--brand); }
+.table.schedule th.num, .table.schedule td.num { text-align: right; }
+
+/* review */
+.review-panel { border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 12px; }
+.review-head { display: flex; gap: 12px; align-items: center; }
+.score-ring { width: 64px; height: 64px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; flex: none; }
+.score-ring b { font-size: 1.4rem; line-height: 1; }
+.score-ring span { font-size: .65rem; }
+.checks { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.checks li { display: flex; gap: 10px; align-items: flex-start; font-size: .9rem; }
+.check-ico { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: .75rem; font-weight: 800; flex: none; color: #fff; }
+.check-pass .check-ico { background: var(--green); }
+.check-warn .check-ico { background: var(--amber); }
+.check-fail .check-ico { background: var(--red); }
+.suggest { display: flex; flex-direction: column; gap: 6px; }
+.caption-box { white-space: pre-wrap; font: inherit; font-size: .88rem; background: var(--surface-2); padding: 10px 12px; border-radius: 10px; margin: 0; }
+.ai-review { border: 1px solid color-mix(in srgb, var(--brand) 40%, var(--border)); border-radius: 12px; padding: 12px 14px; background: color-mix(in srgb, var(--brand-soft) 50%, var(--surface)); display: flex; flex-direction: column; gap: 8px; }
+.ai-review ul { margin: 4px 0 0; padding-left: 18px; }
+.draft-view { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+
+/* feedback */
+.feedback { display: flex; flex-direction: column; gap: 8px; }
+.fb-round { display: flex; flex-direction: column; gap: 6px; }
+.fb-item { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); font-size: .9rem; }
+.fb-item.resolved { opacity: .55; }
+.fb-item.resolved .grow { text-decoration: line-through; }
+.fb-cat { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 2px 7px; border-radius: 999px; background: var(--brand-soft); color: var(--brand); }
+.fb-cat.cat-compliance { background: var(--red-soft); color: var(--red); }
+.fb-time { font-family: ui-monospace, Menlo, monospace; font-size: .8rem; color: var(--muted); }
+.fb-form { display: flex; gap: 6px; flex-wrap: wrap; }
+.fb-form select { width: auto; }
+.fb-at { width: 70px; flex: none; }
+.fb-form .grow { flex: 1 1 180px; }
+
+/* post kit + verification */
+.post-kit { display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px; }
+.kit-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+.kit-tile { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); }
+.kit-tile b { font-size: 1.15rem; }
+.verify { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 12px; background: var(--surface-2); margin: 10px 0; }

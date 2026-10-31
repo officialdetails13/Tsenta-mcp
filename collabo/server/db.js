@@ -100,6 +100,21 @@ CREATE TABLE IF NOT EXISTS deals (
   bonus_metric TEXT,
   bonus_target INTEGER,
   bonus_status TEXT NOT NULL DEFAULT 'none',
+  items TEXT,
+  terms TEXT,
+  draft_caption TEXT,
+  draft_hashtags TEXT,
+  draft_script TEXT,
+  draft_duration_s INTEGER,
+  draft_round INTEGER NOT NULL DEFAULT 0,
+  review TEXT,
+  ai_review TEXT,
+  post_caption TEXT,
+  post_hashtags TEXT,
+  payment_method TEXT,
+  business_signed_name TEXT,
+  creator_signed_name TEXT,
+  brand_verified TEXT,
   dispute_by INTEGER,
   dispute_reason TEXT,
   dispute_creator_pct INTEGER,
@@ -122,6 +137,8 @@ CREATE TABLE IF NOT EXISTS offers (
   bonus_cents INTEGER NOT NULL DEFAULT 0,
   bonus_metric TEXT,
   bonus_target INTEGER,
+  items TEXT,
+  terms TEXT,
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','accepted','declined','superseded')),
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -132,6 +149,19 @@ CREATE TABLE IF NOT EXISTS messages (
   user_id INTEGER REFERENCES users(id),
   body TEXT NOT NULL,
   system INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Brand feedback on drafts and live posts, kept per revision round.
+CREATE TABLE IF NOT EXISTS feedback (
+  id INTEGER PRIMARY KEY,
+  deal_id INTEGER NOT NULL REFERENCES deals(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  round INTEGER NOT NULL DEFAULT 1,
+  category TEXT NOT NULL DEFAULT 'general',
+  at_seconds INTEGER,
+  body TEXT NOT NULL,
+  resolved INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -211,8 +241,11 @@ function migrate(db) {
   add('deals', [['draft_url', 'TEXT'], ['draft_note', 'TEXT'], ['draft_submitted_at', 'TEXT'], ['draft_approved_at', 'TEXT'], ['checklist', 'TEXT'],
     ['bonus_cents', 'INTEGER NOT NULL DEFAULT 0'], ['bonus_metric', 'TEXT'], ['bonus_target', 'INTEGER'], ['bonus_status', "TEXT NOT NULL DEFAULT 'none'"],
     ['dispute_by', 'INTEGER'], ['dispute_reason', 'TEXT'], ['dispute_creator_pct', 'INTEGER'], ['dispute_prev_status', 'TEXT'],
-    ['disputed_at', 'TEXT'], ['resolved_at', 'TEXT'], ['refunded_at', 'TEXT']]);
-  add('offers', [['bonus_cents', 'INTEGER NOT NULL DEFAULT 0'], ['bonus_metric', 'TEXT'], ['bonus_target', 'INTEGER']]);
+    ['disputed_at', 'TEXT'], ['resolved_at', 'TEXT'], ['refunded_at', 'TEXT'],
+    ['items', 'TEXT'], ['terms', 'TEXT'], ['draft_caption', 'TEXT'], ['draft_hashtags', 'TEXT'], ['draft_script', 'TEXT'], ['draft_duration_s', 'INTEGER'],
+    ['draft_round', 'INTEGER NOT NULL DEFAULT 0'], ['review', 'TEXT'], ['ai_review', 'TEXT'], ['post_caption', 'TEXT'], ['post_hashtags', 'TEXT'],
+    ['payment_method', 'TEXT'], ['business_signed_name', 'TEXT'], ['creator_signed_name', 'TEXT'], ['brand_verified', 'TEXT']]);
+  add('offers', [['bonus_cents', 'INTEGER NOT NULL DEFAULT 0'], ['bonus_metric', 'TEXT'], ['bonus_target', 'INTEGER'], ['items', 'TEXT'], ['terms', 'TEXT']]);
   // v0.1 restricted transaction types with a CHECK; SQLite can't drop it in place.
   const txSql = db.prepare("SELECT sql FROM sqlite_master WHERE name = 'transactions'").get()?.sql ?? '';
   if (txSql.includes('CHECK')) {

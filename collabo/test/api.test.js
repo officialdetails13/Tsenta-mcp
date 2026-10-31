@@ -67,7 +67,7 @@ test('negotiation: offer, counter, accept, contract, signatures', async () => {
   assert.deepEqual(d.offers.map((o) => o.status), ['superseded', 'pending']);
   d = (await call('POST', `/deals/${d.id}/offers/${d.offers[1].id}/accept`, {}, biz)).body;
   assert.equal(d.status, 'contract');
-  assert.match(d.contract_text, /Escrow/);
+  assert.match(d.contract_text, /escrow/i);
   assert.equal(d.checklist.length, 5);
 
   assert.equal((await call('POST', `/deals/${d.id}/fund`, {}, biz)).status, 409); // unsigned
@@ -274,4 +274,92 @@ test('demo walkthrough: start a deal and switch sides, demo accounts only', asyn
   const real = (await call('POST', '/deals', { creator_id: creatorId, price: 300, deliverables: 'x', deadline: inDays(9) }, reg.token)).body;
   assert.equal(real.demo_switch, false);
   assert.equal((await call('POST', `/demo/switch/${real.id}`, {}, reg.token)).status, 403);
+});
+
+test('structured offer: formats, lengths and terms price the deal and build the contract', async () => {
+  const biz = await login('brand@glowlab.co');
+  const creator = await login('priyacodes@creator.demo');
+  const creatorId = (await call('GET', '/creators?q=priyacodes')).body[0].id;
+
+  const items = [
+    { platform: 'tiktok', format: 'video', duration_s: 30, quantity: 1, unit_price: 600 },
+    { platform: 'instagram', format: 'story', duration_s: 15, quantity: 3, unit_price: 80 },
+  ];
+  const terms = { usage_rights: 'paid_30', exclusivity_days: 30, revisions: 2, custom: 'Show the product in the first 3 seconds.' };
+  const quoted = (await call('POST', '/quote', { creator_id: creatorId, items, terms })).body;
+  assert.equal(quoted.breakdown.subtotal_cents, 84000);
+  assert.deepEqual(quoted.breakdown.addons.map((a) => a.pct), [30, 10, 5]); // paid 30d, exclusivity, extra revision
+  assert.equal(quoted.breakdown.total_cents, 84000 + 25200 + 8400 + 4200);
+  assert.ok(quoted.items[0].suggested_unit_cents > 0);
+
+  // Bad combinations are rejected.
+  assert.equal((await call('POST', '/deals', { creator_id: creatorId, items: [{ platform: 'x', format: 'reel', unit_price: 5 }], deadline: inDays(10) }, biz)).status, 400);
+  assert.equal((await call('POST', '/deals', { creator_id: creatorId, items: [{ platform: 'instagram', format: 'reel', duration_s: 20, unit_price: 5 }], deadline: inDays(10) }, biz)).status, 400);
+
+  let d = (await call('POST', '/deals', { creator_id: creatorId, items, terms, deadline: inDays(12) }, biz)).body;
+  assert.equal(d.offers[0].price_cents, quoted.breakdown.total_cents);
+  assert.match(d.offers[0].deliverables, /1× TikTok Video \(30s\); 3× Instagram Story frames \(15s frames\)/);
+  d = (await call('POST', `/deals/${d.id}/offers/${d.offers[0].id}/accept`, {}, creator)).body;
+  assert.equal(d.items.length, 2);
+  const titles = d.contract_sections.map((x) => x.title);
+  assert.ok(titles.includes('Usage rights') && titles.includes('Exclusivity') && titles.includes('Additional terms'));
+  assert.match(d.contract_sections.find((x) => x.title === 'Usage rights').body, /paid advertising for 30 days/);
+  assert.equal((await call('POST', `/deals/${d.id}/sign`, { name: 'x' }, biz)).status, 400); // name too short
+  await call('POST', `/deals/${d.id}/sign`, { name: 'Dana Whitfield' }, biz);
+  d = (await call('POST', `/deals/${d.id}/sign`, { name: 'Priya Raman' }, creator)).body;
+  assert.equal(d.business_signed_name, 'Dana Whitfield');
+
+  // Payment breakdown and release schedule.
+  assert.equal(d.payment.total_due_cents, Math.round(d.price_cents * 1.05));
+  assert.equal(d.payment.schedule[0].gross_cents + d.payment.schedule[1].gross_cents, d.price_cents);
+  assert.equal(d.payment.schedule[0].creator_net_cents, d.payment.schedule[0].gross_cents - Math.round(d.payment.schedule[0].gross_cents * 0.1));
+  assert.equal((await call('POST', `/deals/${d.id}/fund`, { method: 'crypto' }, biz)).status, 400);
+  d = (await call('POST', `/deals/${d.id}/fund`, { method: 'bank' }, biz)).body;
+  assert.equal(d.payment_method, 'bank');
+});
+
+test('draft review: automated checks, feedback rounds, post kit and brand verification', async () => {
+  const biz = await login('brand@glowlab.co');
+  const creator = await login('sofiaeats@creator.demo');
+  const creatorId = (await call('GET', '/creators?q=sofiaeats')).body[0].id;
+  let d = (await call('POST', '/deals', { creator_id: creatorId, items: [{ platform: 'instagram', format: 'reel', duration_s: 30, quantity: 1, unit_price: 900 }], deadline: inDays(12) }, biz)).body;
+  d = (await call('POST', `/deals/${d.id}/offers/${d.offers[0].id}/accept`, {}, creator)).body;
+  await call('POST', `/deals/${d.id}/sign`, {}, biz);
+  await call('POST', `/deals/${d.id}/sign`, {}, creator);
+  d = (await call('POST', `/deals/${d.id}/fund`, {}, biz)).body;
+
+  // A weak draft: no disclosure, no code, risky claim, filler hook, wrong length.
+  const weak = (await call('POST', `/deals/${d.id}/check`, { caption: 'Hey guys so this cream cures acne #fyp', duration_s: 75 }, creator)).body;
+  const status = Object.fromEntries(weak.checks.map((c) => [c.key, c.status]));
+  assert.equal(status.disclosure, 'fail');
+  assert.equal(status.promo, 'fail');
+  assert.equal(status.claims, 'fail');
+  assert.equal(status.length, 'warn');
+  assert.ok(weak.suggested_hashtags.includes('#ad') && weak.suggested_hashtags.includes('#glowlabskincare'));
+  assert.match(weak.suggested_caption, new RegExp(d.promo_code));
+  assert.doesNotMatch(weak.suggested_caption, /\[|cures?\b|hey guys/i); // ready to post: no template slots, no risky claim, no filler
+
+  d = (await call('POST', `/deals/${d.id}/draft`, { url: 'https://drive.co/1', caption: 'Hey guys so this cream cures acne #fyp', duration_s: 75 }, creator)).body;
+  assert.equal(d.draft_round, 1);
+  assert.ok(d.review.score < 60);
+  await call('POST', `/deals/${d.id}/feedback`, { category: 'compliance', body: 'Remove “cures acne”', at_seconds: 4 }, biz);
+  d = (await call('POST', `/deals/${d.id}/feedback`, { category: 'caption', body: 'Add the promo code' }, biz)).body;
+  assert.equal(d.feedback.filter((f) => !f.resolved).length, 2);
+  assert.equal((await call('POST', `/deals/${d.id}/ai-review`, {}, biz)).status, 503); // no API key in tests
+  d = (await call('POST', `/deals/${d.id}/draft/request-changes`, {}, biz)).body;
+  assert.match(d.messages.at(-1).body, /revision 1 of 1[\s\S]*cures acne[\s\S]*promo code/);
+
+  const good = `Stop scrolling if your skin feels dry by noon. GlowLab night serum fixed mine. Use code ${d.promo_code} at checkout, link in bio. #ad`;
+  d = (await call('POST', `/deals/${d.id}/draft`, { url: 'https://drive.co/2', caption: good, hashtags: '#skincare #glowyskin #skincareroutine', duration_s: 31 }, creator)).body;
+  assert.equal(d.draft_round, 2);
+  assert.ok(d.feedback.every((f) => f.resolved)); // resubmitting closes the round
+  assert.ok(d.review.score > 75);
+  d = (await call('POST', `/deals/${d.id}/draft/approve`, {}, biz)).body;
+  assert.ok(d.post_kit.hashtags.length >= 4);
+  assert.ok(d.post_kit.tips.some((t) => t.includes(d.promo_code)));
+
+  d = (await call('POST', `/deals/${d.id}/deliver`, { url: 'https://ig.com/p/1', caption: good, checklist: d.checklist.map(() => true) }, creator)).body;
+  assert.equal(d.post_caption, good);
+  d = (await call('POST', `/deals/${d.id}/verify`, { verified: [true, true, false, true, true] }, biz)).body;
+  assert.deepEqual(d.brand_verified, [true, true, false, true, true]);
 });

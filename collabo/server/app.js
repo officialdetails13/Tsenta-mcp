@@ -4,6 +4,8 @@ import { tx } from './db.js';
 import { hashPassword, verifyPassword, issueToken, readToken } from './auth.js';
 import { PLATFORMS, DELIVERABLES, NICHES, estimateRate, marketRate, priceVerdict, creatorTier } from './pricing.js';
 import { isDemoEmail } from './seed.js';
+import { DURATIONS, FORMAT_LABEL, TERM_OPTIONS, DEFAULT_TERMS, InputError, normalizeItems, normalizeTerms, deliverablesText, quote, suggestUnit, termLabels, itemLabel, fmtDuration } from './deliverables.js';
+import { reviewContent, aiReview, aiEnabled, suggestHashtags } from './review.js';
 import { EDIT_STYLES, POST_FORMATS, STAGES, stageFor, analyzeHook, analyzePosts, weeklyCounts, trendStats, missionsFor, recommendations } from './content.js';
 
 export const BUYER_FEE = 0.05; // charged to the business on top of the deal price
@@ -94,7 +96,13 @@ export function createApp(db) {
   }
   app.get('/api/me', auth(), (req, res) => res.json(me(req.user.id)));
 
-  app.get('/api/meta', (_req, res) => res.json({ platforms: PLATFORMS, deliverables: DELIVERABLES, niches: NICHES, edit_styles: EDIT_STYLES, post_formats: POST_FORMATS, stages: STAGES, fees: { buyer: BUYER_FEE, seller: SELLER_FEE } }));
+  app.get('/api/meta', (_req, res) => res.json({
+    platforms: PLATFORMS, deliverables: DELIVERABLES, niches: NICHES, edit_styles: EDIT_STYLES, post_formats: POST_FORMATS, stages: STAGES,
+    fees: { buyer: BUYER_FEE, seller: SELLER_FEE },
+    offer: { format_labels: FORMAT_LABEL, durations: DURATIONS, term_options: TERM_OPTIONS, default_terms: DEFAULT_TERMS },
+    feedback_categories: ['hook', 'branding', 'messaging', 'visuals', 'audio', 'caption', 'compliance', 'general'],
+    ai_review: aiEnabled(),
+  }));
 
   // ---------- creators ----------
   function creatorStats(id) {
@@ -460,11 +468,23 @@ export function createApp(db) {
   // ---------- deals + escrow ----------
   const BONUS_METRICS = { views: 'impressions', conversions: 'conversions', revenue: 'revenue_cents' };
 
+  // Structured offers send items + terms (the price is computed from them);
+  // simple offers send a price and a deliverables sentence.
   function offerFields(b) {
-    need(b, ['price', 'deliverables', 'deadline']);
+    let items = null, terms = null, price_cents, deliverables;
+    if (Array.isArray(b.items)) {
+      try { items = normalizeItems(b.items); terms = normalizeTerms(b.terms); } catch (e) { if (e instanceof InputError) fail(400, e.message); throw e; }
+      price_cents = quote(items, terms).total_cents;
+      deliverables = deliverablesText(items);
+    } else {
+      need(b, ['price', 'deliverables']);
+      price_cents = cents(b.price);
+      deliverables = String(b.deliverables);
+    }
+    need(b, ['deadline']);
     const deadline = isoDate(b.deadline);
     if (deadline < new Date().toISOString().slice(0, 10)) fail(400, 'deadline must be in the future');
-    const out = { price_cents: cents(b.price), deliverables: String(b.deliverables), deadline, note: String(b.note || ''), bonus_cents: 0, bonus_metric: null, bonus_target: null };
+    const out = { price_cents, deliverables, deadline, note: String(b.note || ''), bonus_cents: 0, bonus_metric: null, bonus_target: null, items, terms };
     if (b.bonus && Number(b.bonus) > 0) {
       if (!BONUS_METRICS[b.bonus_metric]) fail(400, 'bonus_metric must be views, conversions or revenue');
       const target = Number(b.bonus_target);
@@ -478,8 +498,9 @@ export function createApp(db) {
 
   function addOffer(dealId, userId, o) {
     q("UPDATE offers SET status = 'superseded' WHERE deal_id = ? AND status = 'pending'").run(dealId);
-    q('INSERT INTO offers (deal_id, from_user_id, price_cents, deliverables, deadline, note, bonus_cents, bonus_metric, bonus_target) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(dealId, userId, o.price_cents, o.deliverables, o.deadline, o.note, o.bonus_cents, o.bonus_metric, o.bonus_target);
+    q('INSERT INTO offers (deal_id, from_user_id, price_cents, deliverables, deadline, note, bonus_cents, bonus_metric, bonus_target, items, terms) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(dealId, userId, o.price_cents, o.deliverables, o.deadline, o.note, o.bonus_cents, o.bonus_metric, o.bonus_target,
+        o.items ? JSON.stringify(o.items) : null, o.terms ? JSON.stringify(o.terms) : null);
     touch(dealId);
   }
 
@@ -590,8 +611,72 @@ export function createApp(db) {
     d.overdue = isOverdue(d);
     const due = (ts, days) => (ts ? new Date(Date.parse(`${ts.replace(' ', 'T')}Z`) + days * 864e5).toISOString() : null);
     d.review_due_at = d.status === 'draft_submitted' ? due(d.draft_submitted_at, DRAFT_REVIEW_DAYS) : d.status === 'delivered' ? due(d.delivered_at, FINAL_REVIEW_DAYS) : null;
+
+    // Step data: offer breakdowns, contract, payment, review, feedback, post kit.
+    d.offers = d.offers.map((o) => ({ ...o, items: parseJson(o.items, null), terms: o.terms ? parsedTerms(o) : null, breakdown: breakdownOf(o) }));
+    d.items = parsedItems(d);
+    d.terms = parsedTerms(d);
+    d.term_labels = termLabels(d.terms).map((o) => o.label);
+    d.breakdown = d.price_cents ? breakdownOf(d) : null;
+    d.contract_sections = d.contract_text ? contractSections(d) : null;
+    if (d.price_cents) {
+      const draftGross = Math.round(d.price_cents * DRAFT_RELEASE);
+      const net = (g) => g - Math.round(g * SELLER_FEE);
+      d.payment = {
+        breakdown: d.breakdown, bonus_cents: d.bonus_cents, service_fee_cents: d.fees.buyer_fee_cents, total_due_cents: d.fees.fund_total_cents,
+        method: d.payment_method, methods: Object.entries(PAYMENT_METHODS).map(([key, label]) => ({ key, label })),
+        schedule: [
+          { milestone: 'Draft approved', pct: DRAFT_RELEASE * 100, gross_cents: draftGross, fee_cents: draftGross - net(draftGross), creator_net_cents: net(draftGross) },
+          { milestone: 'Live post approved', pct: 100 - DRAFT_RELEASE * 100, gross_cents: d.price_cents - draftGross, fee_cents: d.price_cents - draftGross - net(d.price_cents - draftGross), creator_net_cents: net(d.price_cents - draftGross) },
+          ...(d.bonus_cents ? [{ milestone: 'Bonus target met', pct: null, gross_cents: d.bonus_cents, fee_cents: d.bonus_cents - net(d.bonus_cents), creator_net_cents: net(d.bonus_cents), conditional: true }] : []),
+        ],
+      };
+    }
+    d.feedback = q(`SELECT f.*, u.name FROM feedback f JOIN users u ON u.id = f.user_id WHERE f.deal_id = ? ORDER BY f.round DESC, f.id`).all(d.id);
+    d.review = parseJson(d.review, null);
+    d.ai_review = parseJson(d.ai_review, null);
+    d.ai_enabled = aiEnabled();
+    d.brand_verified = parseJson(d.brand_verified, null) ?? [];
+    if (['draft_approved', 'delivered', 'completed'].includes(d.status)) {
+      const ctx = reviewContext(d);
+      const posts = analyzePosts(postsOf(d.creator_id));
+      const best = posts.by_weekday.filter((g) => g.n >= 2)[0];
+      const platform = (d.items ?? [])[0]?.platform ?? 'instagram';
+      d.post_kit = {
+        caption: d.review?.suggested_caption ?? '',
+        draft_caption: d.draft_caption ?? '',
+        hashtags: d.review?.suggested_hashtags ?? suggestHashtags({ ...ctx, platform }),
+        trending: ctx.trends.slice(0, 3).map((t) => ({ name: t.name, platform: t.platform, how_to: t.how_to })),
+        best_day: best ? { day: best.key, avg_er: best.avg_er, n: best.n } : null,
+        tips: [
+          'Post when your audience is most active, and reply to comments in the first hour.',
+          `Pin a comment with code ${d.promo_code}.`,
+          ...(d.terms.link_in_bio_days ? [`Add the brand link to your bio for ${d.terms.link_in_bio_days} days.`] : []),
+          'Turn on the platform’s paid-partnership label as well as #ad.',
+        ],
+      };
+    }
     return d;
   }
+
+  // Live pricing for the offer builder: fills suggested unit prices from the creator's rates.
+  app.post('/api/quote', (req, res) => {
+    need(req.body, ['creator_id', 'items']);
+    const creator = q('SELECT user_id FROM creators WHERE user_id = ?').get(Number(req.body.creator_id));
+    if (!creator) fail(404, 'Creator not found');
+    const items = (Array.isArray(req.body.items) ? req.body.items : []).map((i) => {
+      const r = rateFor(creator.user_id, i.format === 'ugc' ? 'instagram' : i.platform, i.format);
+      const suggested = suggestUnit(r.suggestion.suggested_cents, Number(i.duration_s) || null);
+      return { ...i, suggested_unit_cents: suggested, unit_price: i.unit_price ?? suggested / 100 };
+    });
+    try {
+      const terms = normalizeTerms(req.body.terms);
+      res.json({ items: items.map(({ suggested_unit_cents }) => ({ suggested_unit_cents })), breakdown: quote(normalizeItems(items), terms) });
+    } catch (e) {
+      if (e instanceof InputError) fail(400, e.message);
+      throw e;
+    }
+  });
 
   app.post('/api/deals', auth('business'), (req, res) => {
     const b = req.body;
@@ -649,13 +734,30 @@ export function createApp(db) {
     return o;
   }
 
-  const checklistFor = (d) => [
-    `Deliverables match the contract: ${d.deliverables}`,
-    `Promo code ${d.promo_code} appears in the caption or on screen`,
-    'Sponsorship is disclosed (#ad or the platform’s paid-partnership label)',
-    `Content went live on or before ${d.deadline}`,
-    'Content stays live for at least 30 days',
-  ].map((text) => ({ text, confirmed: false }));
+  const asJson = (v, fallback) => (v && typeof v === 'object' ? v : parseJson(v, fallback));
+  const parsedItems = (d) => asJson(d.items, null);
+  const parsedTerms = (d) => ({ ...DEFAULT_TERMS, ...asJson(d.terms, {}) });
+
+  // Price breakdown for a deal or offer; simple offers become one line.
+  function breakdownOf(d) {
+    const items = parsedItems(d);
+    if (items) return quote(items, parsedTerms(d));
+    const p = d.price_cents ?? 0;
+    return { lines: [{ label: d.deliverables ?? 'Deliverables', quantity: 1, unit_cents: p, total_cents: p }], subtotal_cents: p, addons: [], total_cents: p };
+  }
+
+  const checklistFor = (d) => {
+    const t = parsedTerms(d);
+    const live = t.stays_live_days ? `at least ${t.stays_live_days} days` : 'permanently';
+    return [
+      `Deliverables match the contract: ${d.deliverables}`,
+      `Promo code ${d.promo_code} appears in the caption or on screen`,
+      'Sponsorship is disclosed (#ad or the platform’s paid-partnership label)',
+      `Content went live on or before ${d.deadline}`,
+      `Content stays live ${live}`,
+      ...(t.link_in_bio_days ? [`Link in bio for ${t.link_in_bio_days} days`] : []),
+    ].map((text) => ({ text, confirmed: false }));
+  };
 
   app.post('/api/deals/:id/offers/:offerId/accept', auth(), (req, res) => {
     const d = loadDeal(req.params.id, req.user);
@@ -664,10 +766,12 @@ export function createApp(db) {
       q("UPDATE offers SET status = 'accepted' WHERE id = ?").run(o.id);
       const handle = q('SELECT handle FROM creators WHERE user_id = ?').get(d.creator_id).handle;
       const promo = `${handle.replace(/[^a-z0-9]/gi, '').slice(0, 8).toUpperCase()}${crypto.randomInt(10, 99)}`;
-      const terms = { ...d, price_cents: o.price_cents, deliverables: o.deliverables, deadline: o.deadline, promo_code: promo, bonus_cents: o.bonus_cents, bonus_metric: o.bonus_metric, bonus_target: o.bonus_target };
+      const agreed = { ...d, price_cents: o.price_cents, deliverables: o.deliverables, deadline: o.deadline, promo_code: promo,
+        bonus_cents: o.bonus_cents, bonus_metric: o.bonus_metric, bonus_target: o.bonus_target, items: o.items, terms: o.terms };
       q(`UPDATE deals SET status = 'contract', price_cents = ?, deliverables = ?, deadline = ?, promo_code = ?, contract_text = ?, checklist = ?,
-          bonus_cents = ?, bonus_metric = ?, bonus_target = ? WHERE id = ?`)
-        .run(o.price_cents, o.deliverables, o.deadline, promo, contractText(terms), JSON.stringify(checklistFor(terms)), o.bonus_cents, o.bonus_metric, o.bonus_target, d.id);
+          bonus_cents = ?, bonus_metric = ?, bonus_target = ?, items = ?, terms = ? WHERE id = ?`)
+        .run(o.price_cents, o.deliverables, o.deadline, promo, contractText(agreed), JSON.stringify(checklistFor(agreed)),
+          o.bonus_cents, o.bonus_metric, o.bonus_target, o.items, o.terms, d.id);
       sysMsg(d.id, `${req.user.name} accepted the offer of ${usd(o.price_cents)}${o.bonus_cents ? ` + ${usd(o.bonus_cents)} performance bonus` : ''}. Contract generated, waiting on both signatures.`);
       touch(d.id);
     });
@@ -691,44 +795,57 @@ export function createApp(db) {
     return `${usd(d.bonus_cents)} if the content reaches ${target} ${d.bonus_metric === 'revenue' ? 'in tracked revenue' : d.bonus_metric}`;
   };
 
-  function contractText(d) {
+  const USAGE_TEXT = {
+    organic_90: 'The Brand may reshare the content on its own organic social channels for 90 days. Paid ads use is not included.',
+    organic_365: 'The Brand may reshare the content on its own organic social channels for 1 year. Paid ads use is not included.',
+    paid_30: 'The Brand may use the content organically and in paid advertising for 30 days from posting.',
+    paid_90: 'The Brand may use the content organically and in paid advertising for 90 days from posting.',
+    perpetual: 'The Brand may use the content organically and in paid advertising, in any medium, with no time limit.',
+  };
+
+  // The contract as titled sections, built from the agreed deliverables and terms.
+  function contractSections(d) {
     const biz = q('SELECT company FROM businesses WHERE user_id = ?').get(d.business_id).company;
     const cr = q('SELECT u.name, c.handle FROM creators c JOIN users u ON u.id = c.user_id WHERE c.user_id = ?').get(d.creator_id);
-    const lines = [
-      `INFLUENCER SERVICES AGREEMENT: Deal #${d.id}`,
-      ``,
-      `Brand: ${biz}`,
-      `Creator: ${cr.name} (@${cr.handle})`,
-      ``,
-      `1. Deliverables. ${d.deliverables}`,
-      `2. Deadline. All deliverables go live on or before ${d.deadline}.`,
-      `3. Fee. ${usd(d.price_cents)} USD. The Brand pays a ${BUYER_FEE * 100}% service fee on top. The platform keeps a ${SELLER_FEE * 100}% service fee from the Creator's payouts.`,
-      `4. Escrow. The Brand deposits the full fee${d.bonus_cents ? ' and the performance bonus' : ''} into platform escrow before work starts. Neither party can withdraw escrowed funds on its own. Funds are released only as set out in this agreement.`,
-      `5. Draft approval. The Creator submits a draft before posting. The Brand approves it or requests changes within ${DRAFT_REVIEW_DAYS} days. If the Brand does not respond in that time, the draft counts as approved. On approval, ${DRAFT_RELEASE * 100}% of the fee is released to the Creator.`,
-      `6. Delivery. After posting, the Creator submits the live link and confirms the delivery checklist. The Brand approves or requests a fix within ${FINAL_REVIEW_DAYS} days. If it does not respond in that time, delivery counts as approved. The rest of the fee is then released.`,
+    const t = parsedTerms(d);
+    const b = breakdownOf(d);
+    const draftPay = Math.round(d.price_cents * DRAFT_RELEASE);
+    const s = [
+      { title: 'Parties', body: `This agreement (Deal #${d.id}) is between ${biz} (the “Brand”) and ${cr.name}, @${cr.handle} (the “Creator”), made through Collabo.` },
+      { title: 'Deliverables', body: 'The Creator will produce and publish the deliverables in Schedule A.', schedule: b.lines.map((l) => [l.label + (l.notes ? `: ${l.notes}` : ''), usd(l.total_cents)]) },
+      { title: 'Deadline', body: `All deliverables go live on or before ${d.deadline}. If nothing is live ${LATE_GRACE_DAYS} days after that date, the Brand may cancel and reclaim all funds still in escrow.` },
+      { title: 'Fee and escrow', body: `The fee is ${usd(d.price_cents)}${b.addons.length ? `, including add-ons for ${b.addons.map((a) => a.label.toLowerCase()).join(', ')}` : ''}. The Brand deposits it${d.bonus_cents ? ' and the performance bonus' : ''} into Collabo escrow before work starts, plus a ${BUYER_FEE * 100}% service fee. Collabo keeps ${SELLER_FEE * 100}% of each release to the Creator. Neither party can withdraw escrowed funds on its own.`,
+        schedule: [[`On draft approval (${DRAFT_RELEASE * 100}%)`, usd(draftPay)], [`On live-post approval (${100 - DRAFT_RELEASE * 100}%)`, usd(d.price_cents - draftPay)], ...(d.bonus_cents ? [['Performance bonus, if the target is met', usd(d.bonus_cents)]] : [])] },
+      { title: 'Drafts and revisions', body: `The Creator submits a draft before publishing. The Brand approves it or requests changes within ${DRAFT_REVIEW_DAYS} days; silence counts as approval. The fee includes ${t.revisions} revision round${t.revisions > 1 ? 's' : ''}. Further rounds need the Creator’s agreement.` },
+      { title: 'Publishing and approval', body: `After publishing, the Creator submits the live link and confirms the delivery checklist. The Brand approves or requests a fix within ${FINAL_REVIEW_DAYS} days; silence counts as approval. The content stays live ${t.stays_live_days ? `for at least ${t.stays_live_days} days` : 'permanently'}${t.link_in_bio_days ? `, and the Creator keeps the Brand’s link in their bio for ${t.link_in_bio_days} days` : ''}.` },
+      { title: 'Usage rights', body: `${USAGE_TEXT[t.usage_rights]}${t.whitelisting ? ' The Creator authorises the Brand to run ads from the Creator’s handle (whitelisting) for the same period.' : ''}${t.raw_footage ? ' The Creator delivers the raw, unedited footage within 7 days of approval.' : ''} The Creator keeps ownership of the content.` },
+      { title: 'Exclusivity', body: t.exclusivity_days ? `For ${t.exclusivity_days} days after publishing, the Creator will not publish sponsored content for a direct competitor of the Brand in the same product category.` : 'None. The Creator may work with other brands, including competitors.' },
+      ...(d.bonus_cents ? [{ title: 'Performance bonus', body: `${bonusText(d)}. Views are reported by the Creator; conversions and revenue by the Brand from promo-code ${d.promo_code} sales. If the target is not met within ${BONUS_WINDOW_DAYS} days of completion, the bonus is refunded to the Brand.` }] : []),
+      { title: 'Disclosure and claims', body: 'The Creator labels the content as sponsored (#ad or the platform’s paid-partnership label), following FTC guidelines and platform rules. Neither party will make health, earnings or guarantee claims they cannot substantiate.' },
+      { title: 'Tracking', body: `The Creator includes promo code ${d.promo_code} so sales can be credited to this deal.` },
+      { title: 'Disputes and cancellation', body: 'Either party may cancel before the escrow is funded. After funding, either party may open a dispute, which freezes the escrow until both agree a split or Collabo mediation decides one.' },
+      ...(t.custom ? [{ title: 'Additional terms', body: t.custom }] : []),
     ];
-    if (d.bonus_cents) lines.push(`7. Performance bonus. ${bonusText(d)}. Views are reported by the Creator; conversions and revenue are reported by the Brand from promo-code ${d.promo_code} sales. If the target is not met within ${BONUS_WINDOW_DAYS} days of completion, the bonus is refunded to the Brand.`);
-    const n = d.bonus_cents ? 8 : 7;
-    lines.push(
-      `${n}. Late delivery. If the content is not live ${LATE_GRACE_DAYS} days after the deadline, the Brand may cancel and get a refund of all funds still in escrow.`,
-      `${n + 1}. Disputes. Either party may open a dispute while funds are in escrow. This freezes the funds until both parties agree on a split or platform mediation decides one.`,
-      `${n + 2}. Disclosure. The Creator labels sponsored content clearly (#ad or "Paid partnership"), as required by FTC guidelines and platform rules.`,
-      `${n + 3}. Tracking. The Creator includes promo code ${d.promo_code} so sales can be credited to this deal.`,
-      `${n + 4}. Usage rights. The Brand may reshare the content on its own organic channels for 90 days. Paid ad usage or whitelisting requires a separate written agreement.`,
-      `${n + 5}. Cancellation. Either party may cancel before the escrow is funded.`,
-    );
-    return lines.join('\n');
+    return s.map((x, i) => ({ ...x, n: i + 1 }));
+  }
+
+  function contractText(d) {
+    return [`INFLUENCER SERVICES AGREEMENT: Deal #${d.id}`, '', ...contractSections(d).flatMap((x) => [
+      `${x.n}. ${x.title}. ${x.body}`, ...(x.schedule ?? []).map(([a, b]) => `   - ${a}: ${b}`),
+    ])].join('\n');
   }
 
   app.post('/api/deals/:id/sign', auth(), (req, res) => {
     const d = loadDeal(req.params.id, req.user);
     if (d.status !== 'contract') fail(409, 'There is no contract waiting for signatures');
-    const col = req.user.role === 'business' ? 'business_signed_at' : 'creator_signed_at';
-    if (d[col]) fail(409, 'You already signed');
+    const side = req.user.role === 'business' ? 'business' : 'creator';
+    if (d[`${side}_signed_at`]) fail(409, 'You already signed');
+    const name = String(req.body?.name ?? req.user.name).trim();
+    if (name.length < 2) fail(400, 'Type your full name to sign');
     tx(db, () => {
-      q(`UPDATE deals SET ${col} = datetime('now') WHERE id = ?`).run(d.id);
+      q(`UPDATE deals SET ${side}_signed_at = datetime('now'), ${side}_signed_name = ? WHERE id = ?`).run(name, d.id);
       const after = q('SELECT * FROM deals WHERE id = ?').get(d.id);
-      sysMsg(d.id, `${req.user.name} signed the contract.`);
+      sysMsg(d.id, `${name} signed the contract.`);
       if (after.business_signed_at && after.creator_signed_at) {
         setStatus(d.id, 'awaiting_funding');
         sysMsg(d.id, 'Contract fully signed. The brand can now fund escrow.');
@@ -740,30 +857,93 @@ export function createApp(db) {
 
   // Payments are simulated: the ledger records what a processor such as
   // Stripe Connect (separate charges and transfers) would settle.
+  const PAYMENT_METHODS = { card: 'Card', bank: 'Bank transfer (ACH)' };
+
   app.post('/api/deals/:id/fund', auth('business'), (req, res) => {
     const d = loadDeal(req.params.id, req.user);
     if (d.status !== 'awaiting_funding') fail(409, 'Deal is not ready for funding');
+    const method = req.body?.method ?? 'card';
+    if (!PAYMENT_METHODS[method]) fail(400, 'method must be card or bank');
     tx(db, () => {
       ledger(d.id, 'escrow_fund', d.price_cents);
       ledger(d.id, 'bonus_fund', d.bonus_cents, 'bonus');
       ledger(d.id, 'buyer_fee', Math.round((d.price_cents + d.bonus_cents) * BUYER_FEE));
-      setStatus(d.id, 'in_progress', `, funded_at = datetime('now'), bonus_status = '${d.bonus_cents ? 'held' : 'none'}'`);
-      sysMsg(d.id, `Escrow funded: ${usd(d.price_cents + d.bonus_cents)} is secured${d.bonus_cents ? ` (including a ${usd(d.bonus_cents)} performance bonus)` : ''}. The creator can start. Submit a draft for approval before posting.`);
+      setStatus(d.id, 'in_progress', `, funded_at = datetime('now'), payment_method = '${method}', bonus_status = '${d.bonus_cents ? 'held' : 'none'}'`);
+      sysMsg(d.id, `Escrow funded by ${PAYMENT_METHODS[method].toLowerCase()}: ${usd(d.price_cents + d.bonus_cents)} is secured${d.bonus_cents ? ` (including a ${usd(d.bonus_cents)} performance bonus)` : ''}. The creator can start. Submit a draft for approval before posting.`);
       touch(d.id);
     });
     res.json(dealOut(d.id, req.user));
+  });
+
+  // Context the content review needs: brand, creator niches, trends on their platforms.
+  function reviewContext(d) {
+    const company = q('SELECT company FROM businesses WHERE user_id = ?').get(d.business_id).company;
+    const niches = parseJson(q('SELECT niches FROM creators WHERE user_id = ?').get(d.creator_id).niches, []);
+    const platform = (parsedItems(d) ?? [])[0]?.platform;
+    const trends = trendsFor(d.creator_id, platform && platform !== 'any' ? { platform } : {})
+      .filter((t) => ['rising', 'peaking'].includes(t.momentum) && (!t.niches.length || t.niches.some((n) => niches.includes(n))));
+    return { company, niches, trends, deal: { ...d, items: parsedItems(d), terms: parsedTerms(d) } };
+  }
+
+  const textFields = (b) => ({
+    caption: String(b.caption || '').slice(0, 4000), hashtags: String(b.hashtags || '').slice(0, 1000),
+    script: String(b.script || '').slice(0, 6000), duration_s: b.duration_s ? Math.max(1, Math.round(Number(b.duration_s))) : null,
+  });
+
+  // Live check while writing a draft or the final caption; nothing is saved.
+  app.post('/api/deals/:id/check', auth(), (req, res) => {
+    const d = loadDeal(req.params.id, req.user);
+    res.json(reviewContent({ ...reviewContext(d), ...textFields(req.body ?? {}) }));
   });
 
   app.post('/api/deals/:id/draft', auth('creator'), (req, res) => {
     const d = loadDeal(req.params.id, req.user);
     if (d.status !== 'in_progress') fail(409, 'Drafts can be submitted once escrow is funded');
     need(req.body, ['url']);
+    const f = textFields(req.body);
+    const review = reviewContent({ ...reviewContext(d), ...f });
     tx(db, () => {
-      q("UPDATE deals SET status = 'draft_submitted', draft_url = ?, draft_note = ?, draft_submitted_at = datetime('now') WHERE id = ?")
-        .run(String(req.body.url), String(req.body.note || ''), d.id);
-      sysMsg(d.id, `${req.user.name} submitted a draft for review. The brand has ${DRAFT_REVIEW_DAYS} days to respond.`);
+      q(`UPDATE deals SET status = 'draft_submitted', draft_url = ?, draft_note = ?, draft_caption = ?, draft_hashtags = ?, draft_script = ?,
+          draft_duration_s = ?, draft_round = draft_round + 1, review = ?, ai_review = NULL, draft_submitted_at = datetime('now') WHERE id = ?`)
+        .run(String(req.body.url), String(req.body.note || ''), f.caption, f.hashtags, f.script, f.duration_s, JSON.stringify(review), d.id);
+      q('UPDATE feedback SET resolved = 1 WHERE deal_id = ? AND resolved = 0').run(d.id);
+      sysMsg(d.id, `${req.user.name} submitted draft ${d.draft_round + 1} for review (Collabo check: ${review.score}/100). The brand has ${DRAFT_REVIEW_DAYS} days to respond.`);
       touch(d.id);
     });
+    res.json(dealOut(d.id, req.user));
+  });
+
+  // Ask Claude for written feedback on the current draft (when configured).
+  app.post('/api/deals/:id/ai-review', auth(), async (req, res) => {
+    const d = loadDeal(req.params.id, req.user);
+    if (!d.draft_url) fail(409, 'There is no draft to review yet');
+    if (!aiEnabled()) fail(503, 'AI review is not configured on this server (set ANTHROPIC_API_KEY)');
+    const ctx = reviewContext(d);
+    const f = { caption: d.draft_caption ?? '', hashtags: d.draft_hashtags ?? '', script: d.draft_script ?? '', duration_s: d.draft_duration_s };
+    const ai = await aiReview({ ...ctx, ...f, ruleReview: parseJson(d.review, null) ?? reviewContent({ ...ctx, ...f }) });
+    if (!ai) fail(502, 'The AI review could not be completed. The automated checks above still apply.');
+    q('UPDATE deals SET ai_review = ? WHERE id = ?').run(JSON.stringify(ai), d.id);
+    res.json(dealOut(d.id, req.user));
+  });
+
+  const FEEDBACK_CATEGORIES = ['hook', 'branding', 'messaging', 'visuals', 'audio', 'caption', 'compliance', 'general'];
+
+  app.post('/api/deals/:id/feedback', auth(), (req, res) => {
+    const d = loadDeal(req.params.id, req.user);
+    if (!['draft_submitted', 'delivered'].includes(d.status)) fail(409, 'Feedback opens when there is a draft or live post to review');
+    need(req.body, ['body']);
+    const category = FEEDBACK_CATEGORIES.includes(req.body.category) ? req.body.category : 'general';
+    const at = req.body.at_seconds === '' || req.body.at_seconds == null ? null : Math.max(0, Math.round(Number(req.body.at_seconds)));
+    q('INSERT INTO feedback (deal_id, user_id, round, category, at_seconds, body) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(d.id, req.user.id, Math.max(1, d.draft_round), category, Number.isFinite(at) ? at : null, String(req.body.body).slice(0, 2000));
+    touch(d.id);
+    res.status(201).json(dealOut(d.id, req.user));
+  });
+
+  app.post('/api/deals/:id/feedback/:fid/resolve', auth(), (req, res) => {
+    const d = loadDeal(req.params.id, req.user);
+    const r = q('UPDATE feedback SET resolved = 1 - resolved WHERE id = ? AND deal_id = ?').run(Number(req.params.fid), d.id);
+    if (!r.changes) fail(404, 'Feedback not found');
     res.json(dealOut(d.id, req.user));
   });
 
@@ -774,13 +954,20 @@ export function createApp(db) {
     res.json(dealOut(d.id, req.user));
   });
 
+  const openFeedback = (dealId) => q("SELECT * FROM feedback WHERE deal_id = ? AND resolved = 0 ORDER BY id").all(dealId);
+  const feedbackSummary = (rows) => rows.map((f) => `• [${f.category}${f.at_seconds != null ? ` @ ${Math.floor(f.at_seconds / 60)}:${String(f.at_seconds % 60).padStart(2, '0')}` : ''}] ${f.body}`).join('\n');
+
   app.post('/api/deals/:id/draft/request-changes', auth('business'), (req, res) => {
     const d = loadDeal(req.params.id, req.user);
     if (d.status !== 'draft_submitted') fail(409, 'There is no draft waiting for review');
-    need(req.body, ['note']);
+    const open = openFeedback(d.id);
+    const note = String(req.body?.note || '').trim();
+    if (!note && !open.length) fail(400, 'Add feedback or a note describing the changes');
+    const used = q("SELECT COUNT(*) AS n FROM messages WHERE deal_id = ? AND system = 1 AND body LIKE 'Changes requested on draft%'").get(d.id).n;
+    const included = parsedTerms(d).revisions;
     tx(db, () => {
       setStatus(d.id, 'in_progress');
-      sysMsg(d.id, `Changes requested on the draft: ${req.body.note}`);
+      sysMsg(d.id, `Changes requested on draft ${d.draft_round} (revision ${used + 1} of ${included} included):${note ? ` ${note}` : ''}${open.length ? `\n${feedbackSummary(open)}` : ''}`);
       touch(d.id);
     });
     res.json(dealOut(d.id, req.user));
@@ -794,11 +981,23 @@ export function createApp(db) {
     const confirmed = Array.isArray(req.body.checklist) ? req.body.checklist : [];
     if (list.length && (confirmed.length !== list.length || !confirmed.every(Boolean))) fail(400, 'Confirm every item on the delivery checklist');
     tx(db, () => {
-      q("UPDATE deals SET status = 'delivered', delivered_at = datetime('now'), delivery_url = ?, delivery_note = ?, checklist = ? WHERE id = ?")
-        .run(String(req.body.url), String(req.body.note || ''), JSON.stringify(list.map((i) => ({ ...i, confirmed: true }))), d.id);
+      q(`UPDATE deals SET status = 'delivered', delivered_at = datetime('now'), delivery_url = ?, delivery_note = ?, checklist = ?,
+          post_caption = ?, post_hashtags = ?, brand_verified = NULL WHERE id = ?`)
+        .run(String(req.body.url), String(req.body.note || ''), JSON.stringify(list.map((i) => ({ ...i, confirmed: true }))),
+          String(req.body.caption || '').slice(0, 4000), String(req.body.hashtags || '').slice(0, 1000), d.id);
       sysMsg(d.id, `${req.user.name} posted the content and confirmed the delivery checklist. The brand has ${FINAL_REVIEW_DAYS} days to approve.`);
       touch(d.id);
     });
+    res.json(dealOut(d.id, req.user));
+  });
+
+  // The brand ticks off what it has checked on the live post.
+  app.post('/api/deals/:id/verify', auth('business'), (req, res) => {
+    const d = loadDeal(req.params.id, req.user);
+    if (d.status !== 'delivered') fail(409, 'Nothing has been delivered yet');
+    const n = parseJson(d.checklist, []).length;
+    const v = Array.isArray(req.body?.verified) ? req.body.verified.slice(0, n).map(Boolean) : [];
+    q('UPDATE deals SET brand_verified = ? WHERE id = ?').run(JSON.stringify(v), d.id);
     res.json(dealOut(d.id, req.user));
   });
 
@@ -976,7 +1175,13 @@ export function createApp(db) {
     const deadline = new Date(Date.now() + 14 * 864e5).toISOString().slice(0, 10);
     const id = tx(db, () => {
       const { lastInsertRowid } = q('INSERT INTO deals (business_id, creator_id, package_id, title) VALUES (?, ?, ?, ?)').run(brand.id, creator.id, pkg.id, `Demo: ${pkg.title}`);
-      addOffer(lastInsertRowid, brand.id, { price_cents: pkg.price_cents, deliverables: `${pkg.quantity}× ${pkg.platform} ${pkg.deliverable_type}: ${pkg.title}`, deadline, note: 'Demo offer: switch to the creator to accept or counter it.', bonus_cents: 10000, bonus_metric: 'views', bonus_target: 20000 });
+      const items = [
+        { platform: pkg.platform, format: pkg.deliverable_type, duration_s: DURATIONS[pkg.deliverable_type]?.includes(30) ? 30 : DURATIONS[pkg.deliverable_type]?.[0] ?? null, quantity: pkg.quantity, unit_price_cents: Math.round(pkg.price_cents / pkg.quantity), notes: 'Show the treat bag in the first 3 seconds' },
+        { platform: 'instagram', format: 'story', duration_s: 15, quantity: 3, unit_price_cents: 4000, notes: 'Link sticker to the product page' },
+      ];
+      const terms = { ...DEFAULT_TERMS, usage_rights: 'paid_30', revisions: 2 };
+      addOffer(lastInsertRowid, brand.id, { price_cents: quote(items, terms).total_cents, deliverables: deliverablesText(items), deadline, items, terms,
+        note: 'Demo offer: switch to the creator to accept or counter it.', bonus_cents: 10000, bonus_metric: 'views', bonus_target: 20000 });
       sysMsg(lastInsertRowid, 'Demo deal created. Use “Switch to the creator” at the top of this page to play the other side at any step.');
       return lastInsertRowid;
     });
