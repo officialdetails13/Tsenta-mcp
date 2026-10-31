@@ -1,0 +1,173 @@
+import { fileURLToPath } from 'node:url';
+import { hashPassword } from './auth.js';
+import { openDb } from './db.js';
+
+export const DEMO_PASSWORD = 'password123';
+
+const CREATORS = [
+  { name: 'Maya Chen', handle: 'mayaglow', loc: 'Los Angeles, CA', color: '#db2777', niches: ['beauty', 'lifestyle'],
+    bio: 'Clean-beauty routines and honest product reviews for women in their 20s. My audience buys what I recommend, and my skincare launches have sold out twice.',
+    audience: { age: '18-24', female_pct: 82, top_country: 'US' },
+    socials: [['instagram', 'mayaglow', 184000, 3.8, 41000], ['tiktok', 'mayaglow', 412000, 7.2, 96000]],
+    packages: [['Skincare Reel feature', 'instagram', 'reel', 1, 2200, 7], ['TikTok GRWM with product', 'tiktok', 'video', 1, 2600, 5], ['Story set (3 frames + link)', 'instagram', 'story', 3, 1200, 3], ['UGC product video (no posting)', 'any', 'ugc', 1, 250, 5]] },
+  { name: 'Jordan Ellis', handle: 'liftwithjordan', loc: 'Austin, TX', color: '#059669', niches: ['fitness', 'food'],
+    bio: 'Strength coach sharing no-nonsense training and high-protein recipes. My community is 70% men aged 25–34 who spend on supplements and gear.',
+    audience: { age: '25-34', female_pct: 30, top_country: 'US' },
+    socials: [['youtube', 'LiftWithJordan', 96000, 5.1, 38000], ['instagram', 'liftwithjordan', 58000, 4.4, 15000]],
+    packages: [['60s YouTube integration', 'youtube', 'integration', 1, 1400, 10], ['Dedicated review video', 'youtube', 'video', 1, 2400, 14], ['Workout Reel with product', 'instagram', 'reel', 1, 700, 5]] },
+  { name: 'Priya Raman', handle: 'priyacodes', loc: 'Seattle, WA', color: '#2563eb', niches: ['tech', 'education'],
+    bio: 'Software engineer explaining dev tools, gadgets and productivity apps. Strong B2B reach: my audience is developers and engineering managers.',
+    audience: { age: '25-34', female_pct: 38, top_country: 'US' },
+    socials: [['youtube', 'PriyaCodes', 142000, 4.6, 52000], ['x', 'priyacodes', 61000, 1.8, 9000], ['tiktok', 'priyacodes', 88000, 6.0, 30000]],
+    packages: [['YouTube sponsored segment', 'youtube', 'integration', 1, 2900, 14], ['Launch-day thread', 'x', 'thread', 1, 450, 3], ['TikTok tool demo', 'tiktok', 'video', 1, 900, 5]] },
+  { name: 'Marcus Bell', handle: 'marcusmoney', loc: 'Atlanta, GA', color: '#ca8a04', niches: ['finance', 'education'],
+    bio: 'Making money simple for first-time investors and side hustlers. Finance audiences convert: my fintech partners average 3×+ ROI.',
+    audience: { age: '25-34', female_pct: 45, top_country: 'US' },
+    socials: [['tiktok', 'marcusmoney', 265000, 6.4, 70000], ['instagram', 'marcusmoney', 74000, 3.1, 12000]],
+    packages: [['TikTok explainer with app walkthrough', 'tiktok', 'video', 1, 2700, 7], ['Carousel breakdown', 'instagram', 'carousel', 1, 1000, 5], ['3-video TikTok series', 'tiktok', 'video', 3, 7200, 21]] },
+  { name: 'Sofia Alvarez', handle: 'sofiaeats', loc: 'Miami, FL', color: '#ea580c', niches: ['food', 'travel'],
+    bio: 'Restaurant finds and 15-minute recipes across Miami and Latin America. Local restaurants see walk-ins the same weekend.',
+    audience: { age: '25-34', female_pct: 64, top_country: 'US' },
+    socials: [['instagram', 'sofiaeats', 128000, 4.9, 33000], ['tiktok', 'sofiaeats', 205000, 8.1, 61000]],
+    packages: [['Restaurant visit Reel', 'instagram', 'reel', 1, 1600, 7], ['Recipe TikTok with product', 'tiktok', 'video', 1, 1500, 5], ['Story takeover (5 frames)', 'instagram', 'story', 5, 1100, 2]] },
+  { name: 'Theo Park', handle: 'theoplays', loc: 'Toronto, ON', color: '#7c3aed', niches: ['gaming', 'tech'],
+    bio: 'Variety streamer and gaming-setup nerd. Live reads and setup tours for peripherals, energy drinks and indie games.',
+    audience: { age: '18-24', female_pct: 18, top_country: 'US' },
+    socials: [['twitch', 'theoplays', 72000, 3.4, 4200], ['youtube', 'TheoPlays', 54000, 3.9, 16000]],
+    packages: [['Live sponsored segment (15 min)', 'twitch', 'segment', 1, 500, 7], ['Full sponsored stream', 'twitch', 'live', 1, 1300, 10], ['Setup tour integration', 'youtube', 'integration', 1, 700, 14]] },
+  { name: 'Hannah Brooks', handle: 'hannahathome', loc: 'Nashville, TN', color: '#0d9488', niches: ['home', 'parenting'],
+    bio: 'Mom of three, cozy home makeovers on a budget. My audience is homeowners 28–40 who trust me for home, kids and kitchen buys.',
+    audience: { age: '25-34', female_pct: 91, top_country: 'US' },
+    socials: [['instagram', 'hannahathome', 96000, 4.2, 22000], ['tiktok', 'hannahathome', 51000, 5.5, 14000]],
+    packages: [['Home makeover Reel', 'instagram', 'reel', 1, 1300, 10], ['Carousel product roundup', 'instagram', 'carousel', 1, 1000, 7], ['UGC lifestyle photos (10)', 'any', 'ugc', 1, 300, 7]] },
+  { name: 'Leo Martins', handle: 'leowanders', loc: 'Denver, CO', color: '#0891b2', niches: ['travel', 'lifestyle'],
+    bio: 'Outdoor adventures and van-life gear. Cinematic content brands reuse in their own ads.',
+    audience: { age: '25-34', female_pct: 47, top_country: 'US' },
+    socials: [['instagram', 'leowanders', 41000, 5.6, 14000], ['youtube', 'LeoWanders', 23000, 6.2, 9000]],
+    packages: [['Cinematic Reel', 'instagram', 'reel', 1, 650, 10], ['UGC b-roll package', 'any', 'ugc', 1, 400, 10]] },
+  { name: 'Aaliyah Grant', handle: 'aaliyahstyle', loc: 'New York, NY', color: '#be185d', niches: ['fashion', 'beauty'],
+    bio: 'Affordable streetwear and plus-size styling. My try-on hauls regularly drive four-figure sales days for small brands.',
+    audience: { age: '18-24', female_pct: 88, top_country: 'US' },
+    socials: [['tiktok', 'aaliyahstyle', 330000, 7.8, 85000], ['instagram', 'aaliyahstyle', 112000, 3.5, 25000]],
+    packages: [['Try-on haul TikTok', 'tiktok', 'video', 1, 2900, 7], ['Outfit Reel', 'instagram', 'reel', 1, 1500, 7], ['Haul + story bundle', 'instagram', 'story', 4, 1300, 5]] },
+  { name: 'Ben Okafor', handle: 'benlaughs', loc: 'Chicago, IL', color: '#4f46e5', niches: ['comedy', 'lifestyle'],
+    bio: 'Sketch comedy with recurring characters. Brands get integrated, shareable skits, not ad reads.',
+    audience: { age: '18-24', female_pct: 52, top_country: 'US' },
+    socials: [['tiktok', 'benlaughs', 520000, 9.4, 140000], ['instagram', 'benlaughs', 88000, 4.0, 30000]],
+    packages: [['Branded sketch TikTok', 'tiktok', 'video', 1, 3100, 10], ['Reel cross-post', 'instagram', 'reel', 1, 900, 3]] },
+  { name: 'Emma Novak', handle: 'emmapaws', loc: 'Portland, OR', color: '#65a30d', niches: ['pets', 'lifestyle'],
+    bio: 'Two rescue huskies, a lot of opinions. Pet food, toys and gear reviews from a highly engaged dog-parent community.',
+    audience: { age: '25-34', female_pct: 76, top_country: 'US' },
+    socials: [['instagram', 'emmapaws', 22000, 6.8, 8000], ['tiktok', 'emmapaws', 64000, 9.0, 22000]],
+    packages: [['Husky review TikTok', 'tiktok', 'video', 1, 600, 5], ['Product Reel', 'instagram', 'reel', 1, 350, 5], ['UGC pet content (5 clips)', 'any', 'ugc', 1, 200, 7]] },
+  { name: 'Ravi Shah', handle: 'ravibeats', loc: 'Brooklyn, NY', color: '#dc2626', niches: ['music', 'tech'],
+    bio: 'Producer breaking down beats and studio gear. Great fit for audio, music software and creator tools.',
+    audience: { age: '18-24', female_pct: 22, top_country: 'US' },
+    socials: [['youtube', 'RaviBeats', 37000, 5.4, 12000], ['instagram', 'ravibeats', 15000, 4.1, 5000]],
+    packages: [['Gear integration', 'youtube', 'integration', 1, 450, 10]] },
+];
+
+const BUSINESSES = [
+  { name: 'Dana Whitfield', email: 'brand@glowlab.co', company: 'GlowLab Skincare', industry: 'Beauty & personal care', website: 'https://glowlab.example', location: 'San Diego, CA',
+    about: 'DTC clean skincare brand, ~$2M/yr revenue, growing with creators instead of paid social.' },
+  { name: 'Carlos Rivera', email: 'brand@fuelbar.co', company: 'FuelBar Nutrition', industry: 'Food & supplements', website: 'https://fuelbar.example', location: 'Austin, TX',
+    about: 'High-protein snack bars sold online and in 400 stores.' },
+  { name: 'Mia Thompson', email: 'brand@stackly.app', company: 'Stackly', industry: 'Fintech app', website: 'https://stackly.example', location: 'New York, NY',
+    about: 'Micro-investing app for first-time investors. Pays per install and per funded account.' },
+];
+
+// [business idx, creator handle, package title, price $, revenue $, conversions, impressions, rating, review, days ago]
+const PAST_DEALS = [
+  [0, 'mayaglow', 'Skincare Reel feature', 2200, 9800, 245, 210000, 5, 'Maya sold through our serum restock in four days. Easy to work with.', 60],
+  [0, 'aaliyahstyle', 'Haul + story bundle', 1300, 3900, 97, 88000, 5, 'Great storytelling and on time.', 45],
+  [0, 'mayaglow', 'TikTok GRWM with product', 2600, 7100, 178, 390000, 4, 'Strong results; the first cut needed a revision.', 30],
+  [0, 'emmapaws', 'Product Reel', 350, 400, 10, 19000, 4, 'Cute content, good engagement.', 20],
+  [1, 'liftwithjordan', '60s YouTube integration', 1400, 5200, 260, 61000, 5, 'Best ROI channel we have tried this year.', 50],
+  [1, 'sofiaeats', 'Recipe TikTok with product', 1500, 2700, 135, 240000, 5, 'Creative recipe; viewers loved it.', 35],
+  [1, 'liftwithjordan', 'Workout Reel with product', 700, 1900, 95, 22000, 5, 'Reliable and authentic.', 12],
+  [2, 'marcusmoney', 'TikTok explainer with app walkthrough', 2700, 11400, 380, 410000, 5, 'Our cheapest cost per funded account, by a lot.', 55],
+  [2, 'priyacodes', 'Launch-day thread', 450, 600, 24, 52000, 4, 'Solid reach with a technical crowd.', 25],
+  [2, 'marcusmoney', 'Carousel breakdown', 1000, 2600, 87, 46000, 5, 'Clear, compliant and on time.', 15],
+  [1, 'benlaughs', 'Branded sketch TikTok', 3100, 3600, 120, 880000, 4, 'Huge reach; the sketch went semi-viral.', 40],
+  [0, 'hannahathome', 'Carousel product roundup', 1000, 1800, 45, 41000, 5, 'Her audience trusts her.', 18],
+];
+
+const daysAgo = (n) => new Date(Date.now() - n * 864e5).toISOString().slice(0, 19).replace('T', ' ');
+const dateIn = (n) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
+
+export function seed(db) {
+  const pw = hashPassword(DEMO_PASSWORD);
+  const ins = (sql, ...args) => Number(db.prepare(sql).run(...args).lastInsertRowid);
+  db.exec('BEGIN');
+  try {
+    const creatorIds = {};
+    const pkgIds = {};
+    for (const c of CREATORS) {
+      const id = ins('INSERT INTO users (role, email, password_hash, name) VALUES (?, ?, ?, ?)', 'creator', `${c.handle}@creator.demo`, pw, c.name);
+      creatorIds[c.handle] = id;
+      ins('INSERT INTO creators (user_id, handle, bio, location, niches, audience, avatar_color) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        id, c.handle, c.bio, c.loc, JSON.stringify(c.niches), JSON.stringify(c.audience), c.color);
+      for (const [platform, handle, followers, er, views] of c.socials) {
+        ins('INSERT INTO socials (creator_id, platform, handle, followers, engagement_rate, avg_views) VALUES (?, ?, ?, ?, ?, ?)', id, platform, handle, followers, er, views);
+      }
+      for (const [title, platform, type, qty, price, days] of c.packages) {
+        pkgIds[`${c.handle}|${title}`] = ins(`INSERT INTO packages (creator_id, title, platform, deliverable_type, quantity, price_cents, turnaround_days, description)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, id, title, platform, type, qty, price * 100, days, `${qty}× ${type} on ${platform === 'any' ? 'your channels' : platform}. Includes one round of revisions and the promo code in the caption.`);
+      }
+    }
+    const bizIds = BUSINESSES.map((b) => {
+      const id = ins('INSERT INTO users (role, email, password_hash, name) VALUES (?, ?, ?, ?)', 'business', b.email, pw, b.name);
+      ins('INSERT INTO businesses (user_id, company, industry, website, about, location) VALUES (?, ?, ?, ?, ?, ?)', id, b.company, b.industry, b.website, b.about, b.location);
+      return id;
+    });
+
+    for (const [bi, handle, pkgTitle, price, rev, conv, impr, rating, review, ago] of PAST_DEALS) {
+      const bid = bizIds[bi];
+      const cid = creatorIds[handle];
+      const promo = `${handle.slice(0, 8).toUpperCase()}${10 + (ago % 89)}`;
+      const deadline = new Date(Date.now() - (ago - 10) * 864e5).toISOString().slice(0, 10);
+      const dealId = ins(`INSERT INTO deals (business_id, creator_id, package_id, title, status, price_cents, deliverables, deadline, promo_code, contract_text,
+          business_signed_at, creator_signed_at, funded_at, delivered_at, delivery_url, completed_at, created_at, updated_at)
+        VALUES (?, ?, ?, ?, 'completed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        bid, cid, pkgIds[`${handle}|${pkgTitle}`], pkgTitle, price * 100, pkgTitle, deadline, promo, `INFLUENCER SERVICES AGREEMENT (seeded): ${pkgTitle}`,
+        daysAgo(ago), daysAgo(ago), daysAgo(ago - 1), daysAgo(ago - 8), `https://example.com/post/${handle}`, daysAgo(ago - 9), daysAgo(ago + 2), daysAgo(ago - 9));
+      ins('INSERT INTO offers (deal_id, from_user_id, price_cents, deliverables, deadline, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', dealId, bid, price * 100, pkgTitle, deadline, 'accepted', daysAgo(ago + 2));
+      ins('INSERT INTO transactions (deal_id, type, amount_cents, created_at) VALUES (?, ?, ?, ?)', dealId, 'escrow_fund', price * 100, daysAgo(ago - 1));
+      ins('INSERT INTO transactions (deal_id, type, amount_cents, created_at) VALUES (?, ?, ?, ?)', dealId, 'buyer_fee', price * 5, daysAgo(ago - 1));
+      ins('INSERT INTO transactions (deal_id, type, amount_cents, created_at) VALUES (?, ?, ?, ?)', dealId, 'seller_fee', price * 10, daysAgo(ago - 9));
+      ins('INSERT INTO transactions (deal_id, type, amount_cents, created_at) VALUES (?, ?, ?, ?)', dealId, 'payout', price * 90, daysAgo(ago - 9));
+      ins('INSERT INTO results (deal_id, impressions, clicks, conversions, revenue_cents) VALUES (?, ?, ?, ?, ?)', dealId, impr, Math.round(conv * 4.5), conv, rev * 100);
+      ins('INSERT INTO reviews (deal_id, reviewer_id, reviewee_id, rating, body, created_at) VALUES (?, ?, ?, ?, ?, ?)', dealId, bid, cid, rating, review, daysAgo(ago - 10));
+      ins('INSERT INTO reviews (deal_id, reviewer_id, reviewee_id, rating, body, created_at) VALUES (?, ?, ?, ?, ?, ?)', dealId, cid, bid, 5, 'Clear brief, paid promptly.', daysAgo(ago - 10));
+    }
+
+    // A live negotiation so the deal room has something to show.
+    const live = ins(`INSERT INTO deals (business_id, creator_id, package_id, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
+      bizIds[0], creatorIds.aaliyahstyle, pkgIds['aaliyahstyle|Try-on haul TikTok'], 'Try-on haul TikTok', daysAgo(2), daysAgo(1));
+    ins('INSERT INTO offers (deal_id, from_user_id, price_cents, deliverables, deadline, note, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      live, bizIds[0], 220000, '1× TikTok try-on featuring the GlowLab body line', dateIn(14), 'Love your hauls. Could you do $2,200 since we would like to work together monthly?', 'superseded', daysAgo(2));
+    ins('INSERT INTO offers (deal_id, from_user_id, price_cents, deliverables, deadline, note, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      live, creatorIds.aaliyahstyle, 260000, '1× TikTok try-on + 1 story with link sticker', dateIn(14), "I can do $2,600 and add a story with a link sticker. Happy to discount a 3-month package.", 'pending', daysAgo(1));
+
+    const campaigns = [
+      [0, 'Summer SPF launch: 10 creators', 'We are launching a mineral SPF in June. We want honest first-impression videos showing texture and no white cast. Include code for 20% off.', 15000, ['beauty', 'lifestyle'], ['tiktok', 'instagram'], 30],
+      [1, 'Gym-bag snack challenge', 'Show FuelBar as your pre- or post-workout snack in a real training session. Bonus for recipes using crumbled bars.', 6000, ['fitness', 'food'], ['youtube', 'instagram', 'tiktok'], 21],
+      [2, 'First $100 invested', 'Walk your audience through investing their first $100 with Stackly. Must follow FINRA-friendly disclosure language (we provide it).', 20000, ['finance', 'education'], ['tiktok', 'youtube'], 28],
+    ];
+    for (const [bi, title, brief, budget, niches, platforms, days] of campaigns) {
+      ins('INSERT INTO campaigns (business_id, title, brief, budget_cents, niches, platforms, deadline) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        bizIds[bi], title, brief, budget * 100, JSON.stringify(niches), JSON.stringify(platforms), dateIn(days));
+    }
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const db = openDb();
+  for (const t of ['transactions', 'reviews', 'results', 'messages', 'offers', 'deals', 'campaigns', 'packages', 'socials', 'creators', 'businesses', 'users']) db.exec(`DELETE FROM ${t}`);
+  seed(db);
+  console.log(`Seeded. Log in as brand@glowlab.co or mayaglow@creator.demo with password "${DEMO_PASSWORD}".`);
+}
