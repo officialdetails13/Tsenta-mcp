@@ -240,7 +240,7 @@ test('auth guards roles and validates input', async () => {
   assert.equal((await call('GET', '/deals')).status, 401);
   const reg = await call('POST', '/auth/register', { role: 'creator', email: 'new@x.co', password: 'short', name: 'N' });
   assert.equal(reg.status, 400);
-  const ok = await call('POST', '/auth/register', { role: 'creator', email: 'new@x.co', password: 'longenough', name: 'New Person' });
+  const ok = await call('POST', '/auth/register', { role: 'creator', email: 'new@x.co', password: 'longenough', accept_terms: true, name: 'New Person' });
   assert.equal(ok.status, 201);
   assert.equal(ok.body.user.creator.handle, 'newperson');
 });
@@ -269,7 +269,7 @@ test('demo walkthrough: start a deal and switch sides, demo accounts only', asyn
   assert.equal(d.status, 'contract');
 
   // A real (non-demo) account can't be switched into.
-  const reg = (await call('POST', '/auth/register', { role: 'business', email: 'real@biz.co', password: 'longenough', name: 'Real Biz' })).body;
+  const reg = (await call('POST', '/auth/register', { role: 'business', email: 'real@biz.co', password: 'longenough', accept_terms: true, name: 'Real Biz' })).body;
   const creatorId = (await call('GET', '/creators?q=emmapaws')).body[0].id;
   const real = (await call('POST', '/deals', { creator_id: creatorId, price: 300, deliverables: 'x', deadline: inDays(9) }, reg.token)).body;
   assert.equal(real.demo_switch, false);

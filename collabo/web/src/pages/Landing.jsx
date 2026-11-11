@@ -386,6 +386,7 @@ function Footer() {
       <div className="lp-footer-brand"><img src="/icon.svg" alt="" width="24" height="24" /><b>Collabo</b><p className="small muted">The influencer marketplace with escrow on every deal.</p></div>
       <nav aria-label="Product"><b className="small">Product</b><Link to="/deal-flow">How a deal works</Link><Link to="/discover">Find creators</Link><Link to="/campaigns">Open briefs</Link></nav>
       <nav aria-label="Get started"><b className="small">Get started</b><Link to="/join/business">Join as a brand</Link><Link to="/join/creator">Join as a creator</Link><Link to="/login">Sign in</Link></nav>
+      <nav aria-label="Legal"><b className="small">Legal</b><Link to="/privacy">Privacy Policy</Link><Link to="/terms">Terms of Service</Link><Link to="/data-deletion">Data deletion</Link></nav>
       <p className="small muted lp-copy">© {new Date().getFullYear()} Collabo</p>
     </footer>
   );

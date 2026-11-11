@@ -5,6 +5,7 @@ import { hashPassword, verifyPassword, issueToken, readToken } from './auth.js';
 import { PLATFORMS, DELIVERABLES, NICHES, estimateRate, marketRate, priceVerdict, creatorTier } from './pricing.js';
 import { isDemoEmail } from './seed.js';
 import * as ig from './instagram.js';
+import { notify, emailConfigured } from './notify.js';
 import { DURATIONS, FORMAT_LABEL, TERM_OPTIONS, DEFAULT_TERMS, InputError, normalizeItems, normalizeTerms, deliverablesText, quote, suggestUnit, termLabels, itemLabel, fmtDuration } from './deliverables.js';
 import { reviewContent, aiReview, aiEnabled, suggestHashtags } from './review.js';
 import { EDIT_STYLES, POST_FORMATS, STAGES, stageFor, analyzeHook, analyzePosts, weeklyCounts, trendStats, missionsFor, recommendations } from './content.js';
@@ -16,6 +17,8 @@ export const DRAFT_REVIEW_DAYS = 3; // brand silence after a draft counts as app
 export const FINAL_REVIEW_DAYS = 5; // brand silence after delivery counts as approval
 export const LATE_GRACE_DAYS = 3; // after this, a brand can reclaim escrow for a missed deadline
 export const BONUS_WINDOW_DAYS = 30;
+// Comma-separated emails of Collabo staff who can mediate disputes.
+const isAdmin = (email) => (process.env.ADMIN_EMAILS || '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean).includes(String(email).toLowerCase());
 const SYNC_MAX_AGE_MS = 6 * 36e5; // verified profiles refresh at most every 6 hours
 const DEMO_MODE = process.env.DEMO_MODE !== 'off'; // time to hit a performance target before the bonus is refunded
 
@@ -52,9 +55,14 @@ export function createApp(db) {
   // ---------- auth ----------
   app.use((req, _res, next) => {
     const uid = readToken((req.headers.authorization || '').replace(/^Bearer /, ''));
-    req.user = uid ? q('SELECT id, role, email, name FROM users WHERE id = ?').get(uid) ?? null : null;
+    req.user = uid ? q('SELECT id, role, email, name FROM users WHERE id = ? AND deleted_at IS NULL').get(uid) ?? null : null;
+    if (req.user) req.user.is_admin = isAdmin(req.user.email);
     next();
   });
+  const adminOnly = (req, _res, next) => {
+    if (!req.user?.is_admin) fail(403, 'Admins only');
+    next();
+  };
   const auth = (role) => (req, _res, next) => {
     if (!req.user) fail(401, 'Sign in required');
     if (role && req.user.role !== role) fail(403, `Only ${role}s can do that`);
@@ -66,10 +74,11 @@ export function createApp(db) {
     need(b, ['role', 'email', 'password', 'name']);
     if (!['creator', 'business'].includes(b.role)) fail(400, 'role must be creator or business');
     if (String(b.password).length < 8) fail(400, 'password must be at least 8 characters');
+    if (b.accept_terms !== true) fail(400, 'Please accept the Terms of Service and Privacy Policy');
     const email = String(b.email).trim().toLowerCase();
     if (q('SELECT 1 FROM users WHERE email = ?').get(email)) fail(409, 'An account with that email already exists');
     const id = tx(db, () => {
-      const { lastInsertRowid } = q('INSERT INTO users (role, email, password_hash, name) VALUES (?, ?, ?, ?)')
+      const { lastInsertRowid } = q("INSERT INTO users (role, email, password_hash, name, terms_accepted_at) VALUES (?, ?, ?, ?, datetime('now'))")
         .run(b.role, email, hashPassword(String(b.password)), String(b.name).trim());
       if (b.role === 'creator') {
         let handle = String(b.handle || b.name).toLowerCase().replace(/[^a-z0-9_.]/g, '').slice(0, 24) || `creator${lastInsertRowid}`;
@@ -85,13 +94,15 @@ export function createApp(db) {
 
   app.post('/api/auth/login', (req, res) => {
     need(req.body, ['email', 'password']);
-    const u = q('SELECT * FROM users WHERE email = ?').get(String(req.body.email).trim().toLowerCase());
+    const u = q('SELECT * FROM users WHERE email = ? AND deleted_at IS NULL').get(String(req.body.email).trim().toLowerCase());
     if (!u || !verifyPassword(String(req.body.password), u.password_hash)) fail(401, 'Wrong email or password');
     res.json({ token: issueToken(u.id), user: me(u.id) });
   });
 
   function me(id) {
-    const u = q('SELECT id, role, email, name FROM users WHERE id = ?').get(id);
+    const u = q('SELECT id, role, email, name, email_notifications, terms_accepted_at FROM users WHERE id = ?').get(id);
+    u.is_admin = isAdmin(u.email);
+    u.email_notifications = Boolean(u.email_notifications);
     if (u.role === 'creator') u.creator = q('SELECT * FROM creators WHERE user_id = ?').get(id);
     else u.business = q('SELECT * FROM businesses WHERE user_id = ?').get(id);
     return u;
@@ -105,6 +116,15 @@ export function createApp(db) {
     feedback_categories: ['hook', 'branding', 'messaging', 'visuals', 'audio', 'caption', 'compliance', 'general'],
     ai_review: aiEnabled(),
     instagram_connect: ig.configured(),
+    email_notifications: emailConfigured(),
+    // Shown on the legal pages; set these in the server environment.
+    legal: {
+      name: process.env.LEGAL_NAME || 'Collabo',
+      contact_email: process.env.CONTACT_EMAIL || null,
+      address: process.env.LEGAL_ADDRESS || null,
+      jurisdiction: process.env.GOVERNING_LAW || null,
+      effective: '2026-11-11',
+    },
   });
   app.get('/api/meta', (_req, res) => res.json(app.locals.meta()));
 
@@ -153,7 +173,7 @@ export function createApp(db) {
 
   app.get('/api/creators', (req, res) => {
     const f = req.query;
-    const ids = q('SELECT user_id FROM creators').all().map((r) => r.user_id);
+    const ids = q('SELECT c.user_id FROM creators c JOIN users u ON u.id = c.user_id WHERE u.deleted_at IS NULL').all().map((r) => r.user_id);
     let list = ids.map(creatorSummary);
     const text = String(f.q || '').trim().toLowerCase();
     if (text) list = list.filter((c) => [c.name, c.handle, c.bio, c.location, ...c.niches].join(' ').toLowerCase().includes(text));
@@ -179,7 +199,7 @@ export function createApp(db) {
 
   app.get('/api/creators/:id', (req, res) => {
     const c = creatorSummary(Number(req.params.id));
-    if (!c) fail(404, 'Creator not found');
+    if (!c || q('SELECT deleted_at FROM users WHERE id = ?').get(c.id).deleted_at) fail(404, 'Creator not found');
     c.reviews = q(`SELECT r.rating, r.body, r.created_at, b.company FROM reviews r
       JOIN businesses b ON b.user_id = r.reviewer_id WHERE r.reviewee_id = ? ORDER BY r.created_at DESC`).all(c.id);
     const posts = analyzePosts(postsOf(c.id));
@@ -328,7 +348,7 @@ export function createApp(db) {
       q("INSERT INTO deletion_requests (confirmation_code, platform_user_id, creator_id, status) VALUES (?, ?, ?, 'completed')").run(code, platformUserId, creatorId);
     });
     const origin = process.env.PUBLIC_URL || `${req.protocol}://${req.get('host')}`;
-    res.json({ url: `${origin}/api/instagram/deletion-status/${code}`, confirmation_code: code });
+    res.json({ url: `${origin}/data-deletion?code=${code}`, confirmation_code: code });
   });
   app.get('/api/instagram/deletion-status/:code', (req, res) => {
     const r = q('SELECT status, created_at FROM deletion_requests WHERE confirmation_code = ?').get(req.params.code);
@@ -654,15 +674,27 @@ export function createApp(db) {
   }
 
   function addOffer(dealId, userId, o) {
+    const first = !q('SELECT 1 FROM offers WHERE deal_id = ?').get(dealId);
     q("UPDATE offers SET status = 'superseded' WHERE deal_id = ? AND status = 'pending'").run(dealId);
     q('INSERT INTO offers (deal_id, from_user_id, price_cents, deliverables, deadline, note, bonus_cents, bonus_metric, bonus_target, items, terms) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
       .run(dealId, userId, o.price_cents, o.deliverables, o.deadline, o.note, o.bonus_cents, o.bonus_metric, o.bonus_target,
         o.items ? JSON.stringify(o.items) : null, o.terms ? JSON.stringify(o.terms) : null);
+    const d = q('SELECT business_id, creator_id, title FROM deals WHERE id = ?').get(dealId);
+    notify(db, userId === d.business_id ? d.creator_id : d.business_id, {
+      dealId, kind: 'offer', title: `${first ? 'New offer' : 'Counter-offer'}: ${d.title}`,
+      body: `${usd(o.price_cents)}${o.bonus_cents ? ` + ${usd(o.bonus_cents)} bonus` : ''} for ${o.deliverables}. Live by ${o.deadline}.`,
+    });
     touch(dealId);
   }
 
   const touch = (dealId) => q("UPDATE deals SET updated_at = datetime('now') WHERE id = ?").run(dealId);
-  const sysMsg = (dealId, body) => q('INSERT INTO messages (deal_id, body, system) VALUES (?, ?, 1)').run(dealId, body);
+  // A deal-room system message; with a title it also notifies both parties except whoever acted.
+  const sysMsg = (dealId, body, title = null, actorId = null) => {
+    q('INSERT INTO messages (deal_id, body, system) VALUES (?, ?, 1)').run(dealId, body);
+    if (!title) return;
+    const d = q('SELECT business_id, creator_id, title FROM deals WHERE id = ?').get(dealId);
+    for (const uid of [d.business_id, d.creator_id]) if (uid !== actorId) notify(db, uid, { dealId, kind: 'deal', title: `${title}: ${d.title}`, body });
+  };
   const usd = (c) => `$${(c / 100).toFixed(2)}`;
   const ledger = (dealId, type, amount, note = '') => amount > 0 && q('INSERT INTO transactions (deal_id, type, amount_cents, note) VALUES (?, ?, ?, ?)').run(dealId, type, amount, note);
   const setStatus = (dealId, status, extra = '') => q(`UPDATE deals SET status = ?${extra} WHERE id = ?`).run(status, dealId);
@@ -702,7 +734,7 @@ export function createApp(db) {
     const gross = Math.round(d.price_cents * DRAFT_RELEASE);
     const net = release(d.id, gross, 'draft');
     setStatus(d.id, 'draft_approved', ", draft_approved_at = datetime('now')");
-    sysMsg(d.id, `${by ?? 'Draft auto-approved after the 3-day review window.'}${by ? ' approved the draft.' : ''} ${usd(net)} (${DRAFT_RELEASE * 100}% of the fee, after fees) released to the creator. Post the content when ready.`);
+    sysMsg(d.id, `${by ?? 'Draft auto-approved after the 3-day review window.'}${by ? ' approved the draft.' : ''} ${usd(net)} (${DRAFT_RELEASE * 100}% of the fee, after fees) released to the creator. Post the content when ready.`, 'Draft approved, 30% released', by ? d.business_id : null);
     touch(d.id);
   }
 
@@ -710,7 +742,7 @@ export function createApp(db) {
     const e = escrowOf(d.id);
     const net = release(d.id, e.held_fee_cents, 'final');
     setStatus(d.id, 'completed', ", completed_at = datetime('now')");
-    sysMsg(d.id, `${by ? `${by} approved the live content.` : 'Live content auto-approved after the 5-day review window.'} ${usd(net)} released to the creator.`);
+    sysMsg(d.id, `${by ? `${by} approved the live content.` : 'Live content auto-approved after the 5-day review window.'} ${usd(net)} released to the creator.`, 'Live post approved, payment released', by ? d.business_id : null);
     touch(d.id);
     settleBonus(q('SELECT * FROM deals WHERE id = ?').get(d.id));
   }
@@ -722,19 +754,30 @@ export function createApp(db) {
     if (!r || r[BONUS_METRICS[d.bonus_metric]] < d.bonus_target) return;
     const net = release(d.id, escrowOf(d.id).held_bonus_cents, 'bonus');
     q("UPDATE deals SET bonus_status = 'paid' WHERE id = ?").run(d.id);
-    sysMsg(d.id, `Performance target hit. ${usd(net)} bonus released to the creator.`);
+    sysMsg(d.id, `Performance target hit. ${usd(net)} bonus released to the creator.`, 'Bonus paid', null);
     touch(d.id);
   }
 
   // Deadlines are enforced lazily whenever deals are read, so no scheduler is needed.
+  function remindOnce(d, kind, title, body) {
+    if (q('SELECT 1 FROM notifications WHERE deal_id = ? AND kind = ?').get(d.id, kind)) return;
+    notify(db, d.business_id, { dealId: d.id, kind, title: `${title}: ${d.title}`, body });
+  }
+
   function sweepEscrow() {
+    for (const d of q(`SELECT * FROM deals WHERE status = 'draft_submitted' AND draft_submitted_at <= datetime('now', '-${DRAFT_REVIEW_DAYS - 1} days')`).all()) {
+      remindOnce(d, `reminder_draft_${d.draft_round}`, 'Draft auto-approves in under 24 hours', `If you don’t approve or request changes, the draft is approved automatically and ${usd(Math.round(d.price_cents * DRAFT_RELEASE))} is released to the creator.`);
+    }
+    for (const d of q(`SELECT * FROM deals WHERE status = 'delivered' AND delivered_at <= datetime('now', '-${FINAL_REVIEW_DAYS - 1} days')`).all()) {
+      remindOnce(d, `reminder_final_${d.delivered_at}`, 'Live post auto-approves in under 24 hours', 'If you don’t approve or request a fix, the live post is approved automatically and the rest of the fee is released to the creator.');
+    }
     for (const d of q(`SELECT * FROM deals WHERE status = 'draft_submitted' AND draft_submitted_at <= datetime('now', '-${DRAFT_REVIEW_DAYS} days')`).all()) tx(db, () => approveDraft(d, null));
     for (const d of q(`SELECT * FROM deals WHERE status = 'delivered' AND delivered_at <= datetime('now', '-${FINAL_REVIEW_DAYS} days')`).all()) tx(db, () => completeDeal(d, null));
     for (const d of q(`SELECT * FROM deals WHERE status = 'completed' AND bonus_status = 'held' AND completed_at <= datetime('now', '-${BONUS_WINDOW_DAYS} days')`).all()) {
       tx(db, () => {
         refund(d.id, escrowOf(d.id).held_bonus_cents, 'bonus');
         q("UPDATE deals SET bonus_status = 'refunded' WHERE id = ?").run(d.id);
-        sysMsg(d.id, `The performance target wasn't reached within ${BONUS_WINDOW_DAYS} days. The bonus was refunded to the brand.`);
+        sysMsg(d.id, `The performance target wasn't reached within ${BONUS_WINDOW_DAYS} days. The bonus was refunded to the brand.`, 'Bonus refunded', null);
       });
     }
   }
@@ -929,7 +972,7 @@ export function createApp(db) {
           bonus_cents = ?, bonus_metric = ?, bonus_target = ?, items = ?, terms = ? WHERE id = ?`)
         .run(o.price_cents, o.deliverables, o.deadline, promo, contractText(agreed), JSON.stringify(checklistFor(agreed)),
           o.bonus_cents, o.bonus_metric, o.bonus_target, o.items, o.terms, d.id);
-      sysMsg(d.id, `${req.user.name} accepted the offer of ${usd(o.price_cents)}${o.bonus_cents ? ` + ${usd(o.bonus_cents)} performance bonus` : ''}. Contract generated, waiting on both signatures.`);
+      sysMsg(d.id, `${req.user.name} accepted the offer of ${usd(o.price_cents)}${o.bonus_cents ? ` + ${usd(o.bonus_cents)} performance bonus` : ''}. Contract generated, waiting on both signatures.`, 'Offer accepted', req.user.id);
       touch(d.id);
     });
     res.json(dealOut(d.id, req.user));
@@ -941,7 +984,7 @@ export function createApp(db) {
     tx(db, () => {
       q("UPDATE offers SET status = 'declined' WHERE id = ?").run(o.id);
       setStatus(d.id, 'declined');
-      sysMsg(d.id, `${req.user.name} declined the offer.${req.body?.note ? ` Reason: ${req.body.note}` : ''}`);
+      sysMsg(d.id, `${req.user.name} declined the offer.${req.body?.note ? ` Reason: ${req.body.note}` : ''}`, 'Offer declined', req.user.id);
       touch(d.id);
     });
     res.json(dealOut(d.id, req.user));
@@ -1002,10 +1045,10 @@ export function createApp(db) {
     tx(db, () => {
       q(`UPDATE deals SET ${side}_signed_at = datetime('now'), ${side}_signed_name = ? WHERE id = ?`).run(name, d.id);
       const after = q('SELECT * FROM deals WHERE id = ?').get(d.id);
-      sysMsg(d.id, `${name} signed the contract.`);
+      sysMsg(d.id, `${name} signed the contract.`, 'Contract signed', req.user.id);
       if (after.business_signed_at && after.creator_signed_at) {
         setStatus(d.id, 'awaiting_funding');
-        sysMsg(d.id, 'Contract fully signed. The brand can now fund escrow.');
+        sysMsg(d.id, 'Contract fully signed. The brand can now fund escrow.', 'Contract fully signed', null);
       }
       touch(d.id);
     });
@@ -1026,7 +1069,7 @@ export function createApp(db) {
       ledger(d.id, 'bonus_fund', d.bonus_cents, 'bonus');
       ledger(d.id, 'buyer_fee', Math.round((d.price_cents + d.bonus_cents) * BUYER_FEE));
       setStatus(d.id, 'in_progress', `, funded_at = datetime('now'), payment_method = '${method}', bonus_status = '${d.bonus_cents ? 'held' : 'none'}'`);
-      sysMsg(d.id, `Escrow funded by ${PAYMENT_METHODS[method].toLowerCase()}: ${usd(d.price_cents + d.bonus_cents)} is secured${d.bonus_cents ? ` (including a ${usd(d.bonus_cents)} performance bonus)` : ''}. The creator can start. Submit a draft for approval before posting.`);
+      sysMsg(d.id, `Escrow funded by ${PAYMENT_METHODS[method].toLowerCase()}: ${usd(d.price_cents + d.bonus_cents)} is secured${d.bonus_cents ? ` (including a ${usd(d.bonus_cents)} performance bonus)` : ''}. The creator can start. Submit a draft for approval before posting.`, 'Escrow funded', req.user.id);
       touch(d.id);
     });
     res.json(dealOut(d.id, req.user));
@@ -1064,7 +1107,7 @@ export function createApp(db) {
           draft_duration_s = ?, draft_round = draft_round + 1, review = ?, ai_review = NULL, draft_submitted_at = datetime('now') WHERE id = ?`)
         .run(String(req.body.url), String(req.body.note || ''), f.caption, f.hashtags, f.script, f.duration_s, JSON.stringify(review), d.id);
       q('UPDATE feedback SET resolved = 1 WHERE deal_id = ? AND resolved = 0').run(d.id);
-      sysMsg(d.id, `${req.user.name} submitted draft ${d.draft_round + 1} for review (Collabo check: ${review.score}/100). The brand has ${DRAFT_REVIEW_DAYS} days to respond.`);
+      sysMsg(d.id, `${req.user.name} submitted draft ${d.draft_round + 1} for review (Collabo check: ${review.score}/100). The brand has ${DRAFT_REVIEW_DAYS} days to respond.`, 'Draft submitted for review', req.user.id);
       touch(d.id);
     });
     res.json(dealOut(d.id, req.user));
@@ -1124,7 +1167,7 @@ export function createApp(db) {
     const included = parsedTerms(d).revisions;
     tx(db, () => {
       setStatus(d.id, 'in_progress');
-      sysMsg(d.id, `Changes requested on draft ${d.draft_round} (revision ${used + 1} of ${included} included):${note ? ` ${note}` : ''}${open.length ? `\n${feedbackSummary(open)}` : ''}`);
+      sysMsg(d.id, `Changes requested on draft ${d.draft_round} (revision ${used + 1} of ${included} included):${note ? ` ${note}` : ''}${open.length ? `\n${feedbackSummary(open)}` : ''}`, 'Changes requested', req.user.id);
       touch(d.id);
     });
     res.json(dealOut(d.id, req.user));
@@ -1142,7 +1185,7 @@ export function createApp(db) {
           post_caption = ?, post_hashtags = ?, brand_verified = NULL WHERE id = ?`)
         .run(String(req.body.url), String(req.body.note || ''), JSON.stringify(list.map((i) => ({ ...i, confirmed: true }))),
           String(req.body.caption || '').slice(0, 4000), String(req.body.hashtags || '').slice(0, 1000), d.id);
-      sysMsg(d.id, `${req.user.name} posted the content and confirmed the delivery checklist. The brand has ${FINAL_REVIEW_DAYS} days to approve.`);
+      sysMsg(d.id, `${req.user.name} posted the content and confirmed the delivery checklist. The brand has ${FINAL_REVIEW_DAYS} days to approve.`, 'Live post submitted', req.user.id);
       touch(d.id);
     });
     res.json(dealOut(d.id, req.user));
@@ -1164,7 +1207,7 @@ export function createApp(db) {
     need(req.body, ['note']);
     tx(db, () => {
       setStatus(d.id, 'draft_approved');
-      sysMsg(d.id, `Fix requested on the live content: ${req.body.note}`);
+      sysMsg(d.id, `Fix requested on the live content: ${req.body.note}`, 'Fix requested on the live post', req.user.id);
       touch(d.id);
     });
     res.json(dealOut(d.id, req.user));
@@ -1185,7 +1228,7 @@ export function createApp(db) {
       refund(d.id, e.held_fee_cents, 'late');
       refund(d.id, e.held_bonus_cents, 'bonus');
       setStatus(d.id, 'refunded', `, refunded_at = datetime('now'), bonus_status = CASE WHEN bonus_status = 'held' THEN 'refunded' ELSE bonus_status END`);
-      sysMsg(d.id, `The deadline was missed by more than ${LATE_GRACE_DAYS} days. ${usd(e.held_cents)} was refunded to the brand from escrow.`);
+      sysMsg(d.id, `The deadline was missed by more than ${LATE_GRACE_DAYS} days. ${usd(e.held_cents)} was refunded to the brand from escrow.`, 'Refunded: deadline missed', req.user.id);
       touch(d.id);
     });
     res.json(dealOut(d.id, req.user));
@@ -1205,7 +1248,7 @@ export function createApp(db) {
     const net = release(d.id, toCreator, 'dispute');
     refund(d.id, e.held_cents - toCreator, 'dispute');
     setStatus(d.id, 'resolved', `, resolved_at = datetime('now'), bonus_status = CASE WHEN bonus_status = 'held' THEN 'resolved' ELSE bonus_status END`);
-    sysMsg(d.id, `Dispute resolved ${by}: ${creatorPct}% of the ${usd(e.held_cents)} in escrow goes to the creator (${usd(net)} after fees) and ${usd(e.held_cents - toCreator)} is refunded to the brand.`);
+    sysMsg(d.id, `Dispute resolved ${by}: ${creatorPct}% of the ${usd(e.held_cents)} in escrow goes to the creator (${usd(net)} after fees) and ${usd(e.held_cents - toCreator)} is refunded to the brand.`, 'Dispute resolved', null);
     touch(d.id);
   }
 
@@ -1217,7 +1260,7 @@ export function createApp(db) {
     tx(db, () => {
       q(`UPDATE deals SET status = 'disputed', dispute_prev_status = ?, dispute_by = ?, dispute_reason = ?, dispute_creator_pct = ?, disputed_at = datetime('now') WHERE id = ?`)
         .run(d.status, req.user.id, String(req.body.reason), p, d.id);
-      sysMsg(d.id, `${req.user.name} opened a dispute. Escrow is frozen. Reason: ${req.body.reason}. Proposed split: ${p}% to the creator.`);
+      sysMsg(d.id, `${req.user.name} opened a dispute. Escrow is frozen. Reason: ${req.body.reason}. Proposed split: ${p}% to the creator.`, 'Dispute opened', req.user.id);
       touch(d.id);
     });
     res.json(dealOut(d.id, req.user));
@@ -1230,7 +1273,7 @@ export function createApp(db) {
     const p = pct(req.body.creator_pct);
     tx(db, () => {
       q('UPDATE deals SET dispute_by = ?, dispute_creator_pct = ? WHERE id = ?').run(req.user.id, p, d.id);
-      sysMsg(d.id, `${req.user.name} proposed a different split: ${p}% to the creator.${req.body.note ? ` ${req.body.note}` : ''}`);
+      sysMsg(d.id, `${req.user.name} proposed a different split: ${p}% to the creator.${req.body.note ? ` ${req.body.note}` : ''}`, 'New dispute proposal', req.user.id);
       touch(d.id);
     });
     res.json(dealOut(d.id, req.user));
@@ -1249,7 +1292,7 @@ export function createApp(db) {
     if (d.status !== 'disputed') fail(409, 'No open dispute');
     tx(db, () => {
       setStatus(d.id, d.dispute_prev_status, ', dispute_by = NULL, dispute_creator_pct = NULL');
-      sysMsg(d.id, `${req.user.name} withdrew from the dispute. The deal continues.`);
+      sysMsg(d.id, `${req.user.name} withdrew from the dispute. The deal continues.`, 'Dispute withdrawn', req.user.id);
       touch(d.id);
     });
     res.json(dealOut(d.id, req.user));
@@ -1272,7 +1315,7 @@ export function createApp(db) {
     tx(db, () => {
       q("UPDATE offers SET status = 'declined' WHERE deal_id = ? AND status = 'pending'").run(d.id);
       setStatus(d.id, 'cancelled');
-      sysMsg(d.id, `${req.user.name} cancelled the deal.`);
+      sysMsg(d.id, `${req.user.name} cancelled the deal.`, 'Deal cancelled', req.user.id);
       touch(d.id);
     });
     res.json(dealOut(d.id, req.user));
@@ -1281,7 +1324,9 @@ export function createApp(db) {
   app.post('/api/deals/:id/messages', auth(), (req, res) => {
     const d = loadDeal(req.params.id, req.user);
     need(req.body, ['body']);
-    q('INSERT INTO messages (deal_id, user_id, body) VALUES (?, ?, ?)').run(d.id, req.user.id, String(req.body.body).slice(0, 4000));
+    const body = String(req.body.body).slice(0, 4000);
+    q('INSERT INTO messages (deal_id, user_id, body) VALUES (?, ?, ?)').run(d.id, req.user.id, body);
+    notify(db, req.user.id === d.business_id ? d.creator_id : d.business_id, { dealId: d.id, kind: 'message', title: `Message from ${req.user.name}: ${d.title}`, body: body.slice(0, 280) });
     touch(d.id);
     res.status(201).json(dealOut(d.id, req.user));
   });
@@ -1319,6 +1364,122 @@ export function createApp(db) {
     const reviewee = req.user.id === d.business_id ? d.creator_id : d.business_id;
     q('INSERT INTO reviews (deal_id, reviewer_id, reviewee_id, rating, body) VALUES (?, ?, ?, ?, ?)').run(d.id, req.user.id, reviewee, rating, String(req.body.body || ''));
     res.status(201).json(dealOut(d.id, req.user));
+  });
+
+
+  // ---------- account: notifications, preferences, export, deletion ----------
+  app.get('/api/notifications', auth(), (req, res) => {
+    const items = q('SELECT id, deal_id, kind, title, body, link, read_at, created_at FROM notifications WHERE user_id = ? ORDER BY id DESC LIMIT 50').all(req.user.id);
+    res.json({ unread: q('SELECT COUNT(*) AS n FROM notifications WHERE user_id = ? AND read_at IS NULL').get(req.user.id).n, items });
+  });
+
+  app.post('/api/notifications/read', auth(), (req, res) => {
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(Number).filter(Boolean) : null;
+    if (ids?.length) q(`UPDATE notifications SET read_at = datetime('now') WHERE user_id = ? AND read_at IS NULL AND id IN (${ids.map(() => '?').join(',')})`).run(req.user.id, ...ids);
+    else q("UPDATE notifications SET read_at = datetime('now') WHERE user_id = ? AND read_at IS NULL").run(req.user.id);
+    res.json({ unread: q('SELECT COUNT(*) AS n FROM notifications WHERE user_id = ? AND read_at IS NULL').get(req.user.id).n });
+  });
+
+  app.put('/api/me/preferences', auth(), (req, res) => {
+    if (typeof req.body?.email_notifications === 'boolean') q('UPDATE users SET email_notifications = ? WHERE id = ?').run(req.body.email_notifications ? 1 : 0, req.user.id);
+    res.json(me(req.user.id));
+  });
+
+  // Everything Collabo holds about the signed-in user, as one JSON file.
+  app.get('/api/me/export', auth(), (req, res) => {
+    const id = req.user.id;
+    const deals = q('SELECT * FROM deals WHERE business_id = ? OR creator_id = ?').all(id, id).map((d) => ({
+      ...d,
+      offers: q('SELECT * FROM offers WHERE deal_id = ?').all(d.id),
+      messages: q('SELECT id, user_id, body, system, created_at FROM messages WHERE deal_id = ?').all(d.id),
+      feedback: q('SELECT * FROM feedback WHERE deal_id = ?').all(d.id),
+      results: q('SELECT * FROM results WHERE deal_id = ?').get(d.id) ?? null,
+      transactions: q('SELECT * FROM transactions WHERE deal_id = ?').all(d.id),
+    }));
+    const conn = q('SELECT username, account_type, status, connected_at, last_synced_at, scopes FROM ig_connections WHERE creator_id = ?').get(id);
+    const data = {
+      exported_at: new Date().toISOString(),
+      account: q('SELECT id, role, email, name, terms_accepted_at, email_notifications, created_at FROM users WHERE id = ?').get(id),
+      creator_profile: q('SELECT * FROM creators WHERE user_id = ?').get(id) ?? null,
+      business_profile: q('SELECT * FROM businesses WHERE user_id = ?').get(id) ?? null,
+      social_accounts: q('SELECT * FROM socials WHERE creator_id = ?').all(id),
+      instagram_connection: conn ?? null, // the access token is never exported
+      packages: q('SELECT * FROM packages WHERE creator_id = ?').all(id),
+      content_log: q('SELECT * FROM posts WHERE creator_id = ?').all(id),
+      synced_media: q('SELECT * FROM media WHERE creator_id = ?').all(id),
+      metric_history: q('SELECT * FROM metric_snapshots WHERE creator_id = ?').all(id),
+      campaigns: q('SELECT * FROM campaigns WHERE business_id = ?').all(id),
+      deals,
+      reviews_written: q('SELECT * FROM reviews WHERE reviewer_id = ?').all(id),
+      reviews_received: q('SELECT * FROM reviews WHERE reviewee_id = ?').all(id),
+      notifications: q('SELECT * FROM notifications WHERE user_id = ?').all(id),
+    };
+    res.set('Content-Disposition', `attachment; filename="collabo-export-${id}.json"`).json(data);
+  });
+
+  // Deletes the account. Funded deals must finish first; unfunded ones are cancelled.
+  // Deal records stay (the other party and tax rules need them) but are de-identified.
+  app.delete('/api/me', auth(), (req, res) => {
+    need(req.body ?? {}, ['password']);
+    const u = q('SELECT * FROM users WHERE id = ?').get(req.user.id);
+    if (!verifyPassword(String(req.body.password), u.password_hash)) fail(403, 'Wrong password');
+    const open = q(`SELECT COUNT(*) AS n FROM deals WHERE (business_id = ? OR creator_id = ?) AND status IN ('in_progress','draft_submitted','draft_approved','delivered','disputed')`).get(u.id, u.id).n;
+    if (open) fail(409, `You have ${open} deal${open > 1 ? 's' : ''} with money in escrow. Finish, refund or resolve ${open > 1 ? 'them' : 'it'} before deleting your account.`);
+    tx(db, () => {
+      for (const d of q(`SELECT id FROM deals WHERE (business_id = ? OR creator_id = ?) AND status IN ('negotiating','contract','awaiting_funding')`).all(u.id, u.id)) {
+        q("UPDATE offers SET status = 'declined' WHERE deal_id = ? AND status = 'pending'").run(d.id);
+        q("UPDATE deals SET status = 'cancelled' WHERE id = ?").run(d.id);
+        sysMsg(d.id, 'The other party deleted their account, so this deal was cancelled.', 'Deal cancelled', u.id);
+      }
+      if (u.role === 'creator') {
+        ig.purgeCreator(db, u.id);
+        for (const t of ['socials', 'posts', 'media', 'metric_snapshots']) q(`DELETE FROM ${t} WHERE creator_id = ?`).run(u.id);
+        q('UPDATE packages SET active = 0 WHERE creator_id = ?').run(u.id);
+        q("UPDATE creators SET handle = ?, bio = '', location = '', niches = '[]', audience = '{}' WHERE user_id = ?").run(`deleted-${u.id}`, u.id);
+      } else {
+        q("UPDATE businesses SET company = 'Deleted business', industry = '', website = '', about = '', location = '' WHERE user_id = ?").run(u.id);
+        q("UPDATE campaigns SET status = 'closed' WHERE business_id = ?").run(u.id);
+      }
+      q('DELETE FROM notifications WHERE user_id = ?').run(u.id);
+      q(`UPDATE users SET email = ?, name = 'Deleted user', password_hash = ?, deleted_at = datetime('now') WHERE id = ?`)
+        .run(`deleted-${u.id}@deleted.invalid`, hashPassword(crypto.randomBytes(24).toString('hex')), u.id);
+    });
+    res.status(204).end();
+  });
+
+  // ---------- admin (ADMIN_EMAILS) ----------
+  app.get('/api/admin/overview', auth(), adminOnly, (_req, res) => {
+    const count = (sql) => q(sql).get().n;
+    res.json({
+      users: count('SELECT COUNT(*) AS n FROM users WHERE deleted_at IS NULL'),
+      creators: count("SELECT COUNT(*) AS n FROM users WHERE role = 'creator' AND deleted_at IS NULL"),
+      verified_creators: count("SELECT COUNT(DISTINCT creator_id) AS n FROM socials WHERE source = 'instagram_api'"),
+      businesses: count("SELECT COUNT(*) AS n FROM users WHERE role = 'business' AND deleted_at IS NULL"),
+      deals_by_status: Object.fromEntries(q('SELECT status, COUNT(*) AS n FROM deals GROUP BY status').all().map((r) => [r.status, r.n])),
+      held_in_escrow_cents: q(`SELECT COALESCE(SUM(CASE WHEN type IN ('escrow_fund','bonus_fund') THEN amount_cents WHEN type IN ('payout','seller_fee','refund') THEN -amount_cents ELSE 0 END), 0) AS n FROM transactions`).get().n,
+      platform_fees_cents: q(`SELECT COALESCE(SUM(CASE WHEN type IN ('buyer_fee','seller_fee') THEN amount_cents WHEN type = 'fee_refund' THEN -amount_cents ELSE 0 END), 0) AS n FROM transactions`).get().n,
+    });
+  });
+
+  app.get('/api/admin/disputes', auth(), adminOnly, (_req, res) => {
+    res.json(q(`SELECT d.id, d.title, d.price_cents, d.bonus_cents, d.dispute_reason, d.dispute_creator_pct, d.dispute_by, d.disputed_at, d.dispute_prev_status,
+        d.business_id, b.company, d.creator_id, u.name AS creator_name, c.handle
+      FROM deals d JOIN businesses b ON b.user_id = d.business_id JOIN creators c ON c.user_id = d.creator_id JOIN users u ON u.id = d.creator_id
+      WHERE d.status = 'disputed' ORDER BY d.disputed_at`).all().map((d) => ({
+      ...d, held_cents: escrowOf(d.id).held_cents, proposed_by: d.dispute_by === d.business_id ? 'brand' : 'creator',
+      messages: q('SELECT m.body, m.system, m.created_at, u.name FROM messages m LEFT JOIN users u ON u.id = m.user_id WHERE m.deal_id = ? ORDER BY m.id DESC LIMIT 12').all(d.id).reverse(),
+      draft_url: q('SELECT draft_url, delivery_url, deadline FROM deals WHERE id = ?').get(d.id),
+    })));
+  });
+
+  app.post('/api/admin/disputes/:id/resolve', auth(), adminOnly, (req, res) => {
+    const d = q('SELECT * FROM deals WHERE id = ?').get(Number(req.params.id));
+    if (!d || d.status !== 'disputed') fail(409, 'No open dispute');
+    tx(db, () => {
+      resolveDispute(d, pct(req.body?.creator_pct), 'by Collabo mediation');
+      if (req.body?.note) sysMsg(d.id, `Mediator’s note: ${String(req.body.note).slice(0, 2000)}`);
+    });
+    res.json({ ok: true });
   });
 
   // ---------- demo walkthrough (demo accounts only; DEMO_MODE=off disables) ----------

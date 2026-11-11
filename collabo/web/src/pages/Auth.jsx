@@ -7,7 +7,7 @@ import { ErrorNote, useAction } from '../ui.jsx';
 export default function Auth({ mode }) {
   const { role = 'business' } = useParams();
   const { signIn } = useSession();
-  const [f, setF] = useState({ email: '', password: '', name: '', company: '', handle: '' });
+  const [f, setF] = useState({ email: '', password: '', name: '', company: '', handle: '', accept_terms: false });
   const { busy, error, run } = useAction();
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
 
@@ -28,6 +28,12 @@ export default function Auth({ mode }) {
         {mode === 'register' && role === 'creator' && <label>Handle<input placeholder="yourhandle" value={f.handle} onChange={set('handle')} /></label>}
         <label>Email<input type="email" required value={f.email} onChange={set('email')} /></label>
         <label>Password<input type="password" required minLength={mode === 'register' ? 8 : 1} value={f.password} onChange={set('password')} /></label>
+        {mode === 'register' && (
+          <label className="check-row">
+            <input type="checkbox" required checked={f.accept_terms} onChange={(e) => setF({ ...f, accept_terms: e.target.checked })} />
+            <span>I’m 18 or older and agree to the <Link to="/terms" target="_blank">Terms of Service</Link> and <Link to="/privacy" target="_blank">Privacy Policy</Link>.</span>
+          </label>
+        )}
         <ErrorNote error={error} />
         <button className="btn" disabled={busy}>{mode === 'login' ? 'Sign in' : 'Create account'}</button>
       </form>

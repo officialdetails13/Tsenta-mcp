@@ -25,3 +25,18 @@ services:
         sync: false
       - key: PUBLIC_URL
         sync: false
+      # Legal pages, admin and email (see collabo/README.md, "Accounts, legal pages…").
+      - key: LEGAL_NAME
+        sync: false
+      - key: CONTACT_EMAIL
+        sync: false
+      - key: LEGAL_ADDRESS
+        sync: false
+      - key: GOVERNING_LAW
+        sync: false
+      - key: ADMIN_EMAILS
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false

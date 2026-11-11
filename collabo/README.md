@@ -63,6 +63,23 @@ Tokens and synced data live in the database, so production needs a persistent di
 
 `test/instagram.test.js` runs the whole flow against a local fake of the Instagram API.
 
+Submitting for Meta App Review: see [docs/meta-app-review.md](docs/meta-app-review.md) (permission descriptions, reviewer steps, URLs, app icon).
+
+## Accounts, legal pages, notifications and admin
+
+| Variable | Purpose |
+|---|---|
+| `LEGAL_NAME` | Company name shown in the Privacy Policy and Terms (default "Collabo") |
+| `CONTACT_EMAIL` | Privacy and support contact shown on the legal pages |
+| `LEGAL_ADDRESS`, `GOVERNING_LAW` | Shown on the legal pages; until they and `CONTACT_EMAIL` are set, the pages show a "Draft" banner |
+| `ADMIN_EMAILS` | Comma-separated emails that get the `/admin` dispute console |
+| `RESEND_API_KEY`, `EMAIL_FROM` | Optional email notifications through [Resend](https://resend.com) (e.g. `Collabo <hello@yourdomain.com>`); without them notifications are in-app only |
+
+- `/privacy`, `/terms`, `/data-deletion`: written to match what the code collects. Have them reviewed before launch. Signing up requires accepting them (`terms_accepted_at` is stored).
+- **Notifications**: every deal event (offer, counter, signature, funding, draft, approval, payout, dispute, message) notifies the other party in the app (bell in the top bar) and by email if configured. Brands get a reminder 24 hours before a draft or final delivery auto-approves.
+- **Account** page: notification list, email on/off, **Download my data** (`GET /api/me/export`, JSON) and **Delete account** (`DELETE /api/me`, password required; blocked while money is in escrow; profile and Instagram data are deleted, deal records are de-identified).
+- **Admin** (`/admin`): totals and every open dispute with the reason, proposals, last messages and draft links; pick a split and leave a note to resolve it.
+
 ## What's in it
 
 | Area | Brands | Creators |
@@ -84,7 +101,7 @@ Tokens and synced data live in the database, so production needs a persistent di
 | Live post approved | The rest of the fee is released. The creator has to confirm the contract checklist first. Auto-approves after **5 days**. |
 | Performance bonus | Paid when the target is hit. Creators report views; brands report conversions and revenue. Refunded to the brand if the target isn't hit within **30 days** of completion. |
 | Missed deadline | **3 days** after the deadline, the brand can reclaim everything still held. |
-| Dispute | Either side can freeze the funds and propose a split; the other side accepts or counters. Platform mediation: `POST /api/admin/deals/:id/resolve` with header `x-admin-token: $ADMIN_TOKEN` (disabled unless `ADMIN_TOKEN` is set). |
+| Dispute | Either side can freeze the funds and propose a split; the other side accepts or counters. Platform mediation: the `/admin` console (accounts listed in `ADMIN_EMAILS`), or `POST /api/admin/deals/:id/resolve` with header `x-admin-token: $ADMIN_TOKEN`. |
 
 Deadlines are enforced whenever deals are read, so no background job is needed.
 
@@ -107,11 +124,12 @@ server/
   app.js      REST API (auth, creators, packages, campaigns, deals, results, reviews)
   pricing.js  rate engine, market comparison, tier scoring
   content.js  growth stages, hook analyzer, post analytics, missions, recommendations, trend momentum
+  notify.js   in-app notifications + optional email (Resend)
   db.js       SQLite schema
   seed.js     demo creators, brands, completed deals and briefs
 web/src/
   pages/      Landing, Auth, Discover, CreatorProfile, Campaigns, CampaignDetail,
-              Deals, DealRoom, Studio, Growth, Dashboard
+              Deals, DealRoom, Studio, Growth, Dashboard, Account, Admin, Legal
   ui.jsx      shared components
 test/         API tests (node:test)
 ```

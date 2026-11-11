@@ -9,8 +9,26 @@ CREATE TABLE IF NOT EXISTS users (
   email TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
   name TEXT NOT NULL,
+  terms_accepted_at TEXT,
+  email_notifications INTEGER NOT NULL DEFAULT 1,
+  deleted_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- In-app notifications (also emailed when an email provider is configured).
+CREATE TABLE IF NOT EXISTS notifications (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  deal_id INTEGER REFERENCES deals(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL,
+  title TEXT NOT NULL,
+  body TEXT NOT NULL DEFAULT '',
+  link TEXT,
+  read_at TEXT,
+  emailed_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS notifications_by_user ON notifications (user_id, id);
 
 CREATE TABLE IF NOT EXISTS creators (
   user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
@@ -311,6 +329,7 @@ function migrate(db) {
     ['items', 'TEXT'], ['terms', 'TEXT'], ['draft_caption', 'TEXT'], ['draft_hashtags', 'TEXT'], ['draft_script', 'TEXT'], ['draft_duration_s', 'INTEGER'],
     ['draft_round', 'INTEGER NOT NULL DEFAULT 0'], ['review', 'TEXT'], ['ai_review', 'TEXT'], ['post_caption', 'TEXT'], ['post_hashtags', 'TEXT'],
     ['payment_method', 'TEXT'], ['business_signed_name', 'TEXT'], ['creator_signed_name', 'TEXT'], ['brand_verified', 'TEXT']]);
+  add('users', [['terms_accepted_at', 'TEXT'], ['email_notifications', 'INTEGER NOT NULL DEFAULT 1'], ['deleted_at', 'TEXT']]);
   add('socials', [['source', "TEXT NOT NULL DEFAULT 'self_reported'"], ['fetched_at', 'TEXT'], ['verified_at', 'TEXT'], ['external_id', 'TEXT'], ['profile_picture_url', 'TEXT']]);
   add('creators', [['audience_source', 'TEXT'], ['audience_fetched_at', 'TEXT'], ['is_demo', 'INTEGER NOT NULL DEFAULT 0']]);
   add('offers', [['bonus_cents', 'INTEGER NOT NULL DEFAULT 0'], ['bonus_metric', 'TEXT'], ['bonus_target', 'INTEGER'], ['items', 'TEXT'], ['terms', 'TEXT']]);

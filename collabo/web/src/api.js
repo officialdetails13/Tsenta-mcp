@@ -6,6 +6,7 @@ export function setToken(t) {
   else localStorage.removeItem('collabo_token');
 }
 export const hasToken = () => !!token;
+export const getToken = () => token;
 
 export async function api(path, { method = 'GET', body } = {}) {
   const res = await fetch(`/api${path}`, {

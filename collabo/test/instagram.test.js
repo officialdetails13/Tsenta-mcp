@@ -72,7 +72,7 @@ before(async () => {
 after(() => { server.close(); fake.close(); for (const k of ['IG_APP_ID', 'IG_APP_SECRET', 'IG_REDIRECT_URI', 'IG_AUTH_BASE', 'IG_OAUTH_BASE', 'IG_GRAPH_BASE']) delete process.env[k]; });
 
 test('a creator connects Instagram and their profile shows verified, sourced metrics and content', async () => {
-  const reg = (await call('POST', '/auth/register', { role: 'creator', email: 'real@creator.co', password: 'longenough', name: 'Real Creator', handle: 'realcreator' })).body;
+  const reg = (await call('POST', '/auth/register', { role: 'creator', email: 'real@creator.co', password: 'longenough', accept_terms: true, name: 'Real Creator', handle: 'realcreator' })).body;
   const token = reg.token;
   const me = reg.user.id;
   assert.equal((await call('GET', '/creator/connections', null, token)).body.instagram.configured, true);
@@ -151,7 +151,7 @@ test('Meta data-deletion callback removes all Instagram data and returns a confi
   const r = await call('POST', '/instagram/data-deletion', null, null, { headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: `signed_request=${sig}.${payload}` });
   assert.equal(r.status, 200);
   assert.ok(r.body.confirmation_code);
-  assert.match(r.body.url, new RegExp(`/api/instagram/deletion-status/${r.body.confirmation_code}$`));
+  assert.match(r.body.url, new RegExp(`/data-deletion\\?code=${r.body.confirmation_code}$`));
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM ig_connections').get().n, 0);
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM media WHERE source = 'instagram_api'").get().n, 0);
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM socials WHERE source = 'instagram_api'").get().n, 0);
