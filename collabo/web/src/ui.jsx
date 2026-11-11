@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { compact, money } from './api.js';
+import { m } from './motion.jsx';
 
 export const PLATFORM_LABEL = { instagram: 'Instagram', tiktok: 'TikTok', youtube: 'YouTube', x: 'X', twitch: 'Twitch', any: 'Any channel' };
 const PLATFORM_ABBR = { instagram: 'IG', tiktok: 'TT', youtube: 'YT', x: 'X', twitch: 'TW', any: 'UGC' };
@@ -40,12 +41,13 @@ export function Modal({ title, onClose, children }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={title}>
+    <m.div className="modal-backdrop" onClick={onClose} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.15 }}>
+      <m.div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={title}
+        initial={{ opacity: 0, y: 24, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.25 }}>
         <div className="modal-head"><h3>{title}</h3><button className="icon-btn" onClick={onClose} aria-label="Close">×</button></div>
         {children}
-      </div>
-    </div>
+      </m.div>
+    </m.div>
   );
 }
 

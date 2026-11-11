@@ -1,0 +1,36 @@
+/* Tailwind utilities for drop-in components (21st.dev / shadcn style).
+   Preflight is deliberately left out so it can't restyle existing screens,
+   and the class names those components use map onto Collabo's tokens. */
+@layer theme, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@theme inline {
+  --color-background: var(--bg);
+  --color-foreground: var(--text);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--text);
+  --color-popover: var(--surface);
+  --color-popover-foreground: var(--text);
+  --color-primary: var(--brand);
+  --color-primary-foreground: var(--on-brand);
+  --color-secondary: var(--surface-2);
+  --color-secondary-foreground: var(--text);
+  --color-muted: var(--surface-2);
+  --color-muted-foreground: var(--muted);
+  --color-accent: var(--brand-soft);
+  --color-accent-foreground: var(--brand);
+  --color-destructive: var(--red);
+  --color-border: var(--border);
+  --color-input: var(--border);
+  --color-ring: var(--brand);
+  --color-brand: var(--brand);
+  --color-brand-2: var(--brand-2);
+  --color-success: var(--green);
+  --color-warning: var(--amber);
+  --radius-sm: var(--radius-sm);
+  --radius-md: 10px;
+  --radius-lg: var(--radius);
+  --radius-xl: var(--radius-lg);
+  --font-sans: var(--font);
+}

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, compact, money, qs } from '../api.js';
 import { useSession } from '../App.jsx';
+import { Stagger, StaggerItem, m } from '../motion.jsx';
 import { Avatar, PLATFORM_LABEL, Platform, SourceBadge, Stars, TierBadge, useLoad } from '../ui.jsx';
 
 const MAX_COMPARE = 4;
@@ -40,15 +41,15 @@ export default function Discover() {
         </select>
       </div>
       {!creators ? <p className="muted">Loading…</p> : creators.length === 0 ? <p className="muted">No creators match those filters.</p> : (
-        <div className="cards">
-          {creators.map((c) => <CreatorCard key={c.id} c={c} picked={picked.some((p) => p.id === c.id)} onPick={() => togglePick(c)} full={picked.length >= MAX_COMPARE} />)}
-        </div>
+        <Stagger className="cards" key={JSON.stringify(f)}>
+          {creators.map((c) => <StaggerItem key={c.id}><CreatorCard c={c} picked={picked.some((p) => p.id === c.id)} onPick={() => togglePick(c)} full={picked.length >= MAX_COMPARE} /></StaggerItem>)}
+        </Stagger>
       )}
       {picked.length > 0 && (
-        <div className="compare-tray" role="region" aria-label="Compare creators">
+        <m.div className="compare-tray" role="region" aria-label="Compare creators" initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}>
           <div className="compare-people">{picked.map((c) => <span key={c.id} className="chip">{c.name}<button type="button" className="link" aria-label={`Remove ${c.name}`} onClick={() => togglePick(c)}>×</button></span>)}</div>
           <button className="btn" disabled={picked.length < 2} onClick={() => navigate(`/compare?ids=${picked.map((c) => c.id).join(',')}`)}>Compare {picked.length}{picked.length < 2 ? ' (pick 2+)' : ''}</button>
-        </div>
+        </m.div>
       )}
     </>
   );

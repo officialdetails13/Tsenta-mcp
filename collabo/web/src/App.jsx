@@ -1,19 +1,24 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { NavLink, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
+import React, { Suspense, createContext, lazy, useContext, useEffect, useState } from 'react';
+import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { api, hasToken, setToken } from './api.js';
+import { AnimatePresence, MotionProvider, m } from './motion.jsx';
 import Landing from './pages/Landing.jsx';
-import Auth from './pages/Auth.jsx';
-import Discover from './pages/Discover.jsx';
-import CreatorProfile from './pages/CreatorProfile.jsx';
-import Campaigns from './pages/Campaigns.jsx';
-import CampaignDetail from './pages/CampaignDetail.jsx';
-import Deals from './pages/Deals.jsx';
-import DealRoom from './pages/DealRoom.jsx';
-import Studio from './pages/Studio.jsx';
-import Growth from './pages/Growth.jsx';
-import Dashboard from './pages/Dashboard.jsx';
-import DealFlowTour from './pages/DealFlowTour.jsx';
-import Compare from './pages/Compare.jsx';
+
+// Every page except the landing page loads on demand.
+const Auth = lazy(() => import('./pages/Auth.jsx'));
+const Discover = lazy(() => import('./pages/Discover.jsx'));
+const CreatorProfile = lazy(() => import('./pages/CreatorProfile.jsx'));
+const Campaigns = lazy(() => import('./pages/Campaigns.jsx'));
+const CampaignDetail = lazy(() => import('./pages/CampaignDetail.jsx'));
+const Deals = lazy(() => import('./pages/Deals.jsx'));
+const DealRoom = lazy(() => import('./pages/DealRoom.jsx'));
+const Studio = lazy(() => import('./pages/Studio.jsx'));
+const Growth = lazy(() => import('./pages/Growth.jsx'));
+const Dashboard = lazy(() => import('./pages/Dashboard.jsx'));
+const DealFlowTour = lazy(() => import('./pages/DealFlowTour.jsx'));
+const Compare = lazy(() => import('./pages/Compare.jsx'));
+
+const LANDING_LINKS = [['#how', 'How it works'], ['#features', 'Why Collabo'], ['#pricing', 'Pricing'], ['#faq', 'FAQ']];
 
 const Ctx = createContext(null);
 export const useSession = () => useContext(Ctx);
@@ -21,11 +26,14 @@ export const useSession = () => useContext(Ctx);
 export default function App() {
   const [user, setUser] = useState(null);
   const [ready, setReady] = useState(!hasToken());
-  const [meta, setMeta] = useState(null);
+  // The server embeds /api/meta in the page, so the first render doesn't wait on a request.
+  const [meta, setMeta] = useState(() => window.__COLLABO_META__ ?? null);
+  const [scrolled, setScrolled] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
-    api('/meta').then(setMeta);
+    if (!meta) api('/meta').then(setMeta);
     if (hasToken()) api('/me').then(setUser).catch(() => setToken(null)).finally(() => setReady(true));
   }, []);
 
@@ -37,6 +45,13 @@ export default function App() {
     refreshUser: () => api('/me').then(setUser),
   };
 
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   if (!ready || !meta) return <div className="center muted">Loading…</div>;
 
   const isCreator = user?.role === 'creator';
@@ -44,12 +59,15 @@ export default function App() {
     ? [['/studio', 'Studio', '✦'], ['/campaigns', 'Briefs', '◎'], ['/deals', 'Deals', '⇄'], ['/growth', 'Level up', '▲']]
     : [['/discover', 'Discover', '⌕'], ['/campaigns', 'Campaigns', '◎'], ['/deals', 'Deals', '⇄'], ['/dashboard', 'Results', '▤']];
 
+  const onLanding = !user && location.pathname === '/';
   return (
     <Ctx.Provider value={session}>
-      <header className="topbar">
-        <NavLink to={user ? tabs[0][0] : '/'} className="brand"><img src="/icon.svg" alt="" />Collabo</NavLink>
-        <nav className="topnav">
+      <MotionProvider>
+      <header className={`topbar ${scrolled ? 'scrolled' : ''}`}>
+        <NavLink to={user ? tabs[0][0] : '/'} className="brand"><img src="/icon.svg" alt="" width="28" height="28" />Collabo</NavLink>
+        <nav className="topnav" aria-label="Main">
           {tabs.map(([to, label]) => <NavLink key={to} to={to}>{label}</NavLink>)}
+          {onLanding && LANDING_LINKS.map(([href, label]) => <a key={href} href={href}>{label}</a>)}
         </nav>
         <div className="topbar-right">
           {user ? (
@@ -59,15 +77,18 @@ export default function App() {
             </>
           ) : (
             <>
-              <NavLink to="/discover" className="btn ghost sm hide-sm">Browse creators</NavLink>
-              <NavLink to="/login" className="btn sm">Sign in</NavLink>
+              <NavLink to="/login" className="btn ghost sm">Sign in</NavLink>
+              <NavLink to="/join/business" className="btn sm hide-sm">Get started</NavLink>
             </>
           )}
         </div>
       </header>
 
-      <main className="container">
-        <Routes>
+      <main>
+        <AnimatePresence mode="wait" initial={false}>
+          <m.div key={location.pathname} className="container" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, transition: { duration: 0.12 } }} transition={{ duration: 0.2 }}>
+            <Suspense fallback={<div className="center muted">Loading…</div>}>
+        <Routes location={location}>
           <Route path="/" element={user ? <Navigate to={tabs[0][0]} replace /> : <Landing />} />
           <Route path="/login" element={<Auth mode="login" />} />
           <Route path="/join/:role" element={<Auth mode="register" />} />
@@ -84,6 +105,9 @@ export default function App() {
           <Route path="/dashboard" element={<Private role="business"><Dashboard /></Private>} />
           <Route path="*" element={<div className="center"><h2>Page not found</h2></div>} />
         </Routes>
+            </Suspense>
+          </m.div>
+        </AnimatePresence>
       </main>
 
       {user && (
@@ -93,6 +117,7 @@ export default function App() {
           ))}
         </nav>
       )}
+      </MotionProvider>
     </Ctx.Provider>
   );
 }

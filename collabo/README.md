@@ -26,6 +26,13 @@ Development with hot reload: run `npm run dev:server` and `npm run dev:web` in t
 
 The repo-root `render.yaml` defines a free web service (Node 22, built from `collabo/`, with a generated `AUTH_SECRET`). Free-tier storage is temporary, so the database resets to the demo data on each restart or redeploy. Attach a Render disk and set `DB_FILE` to a path on it to keep data.
 
+## Design system and front-end stack
+
+- **Design rules** live in the `frontend-design` skill (`.claude/skills/frontend-design/SKILL.md` at the repo root): type scale, 8px spacing grid, color tokens, component patterns, motion rules and what to avoid. The tokens themselves are in `web/src/styles.css`.
+- **Motion:** Framer Motion through `web/src/motion.jsx` (`Reveal`, `Stagger`, `CountUp`, `m.*`). The animation engine loads after first paint, and `prefers-reduced-motion` is respected.
+- **Drop-in components** (21st.dev, shadcn style): Tailwind v4 utilities without its global reset, mapped to Collabo's tokens (`web/src/tailwind.css`), plus `cn()` in `web/src/lib/cn.js` and `lucide-react` icons. Paste a component into `web/src/components/` and follow the skill's integration steps.
+- **Performance:** pages are code-split, responses are gzip-compressed, `/api/meta` is embedded in the HTML, and hashed assets are cached for a year. Check with `npm run build && npm start`, then `npm run lighthouse` in another terminal (it writes `lighthouse.html`).
+
 ## Verified Instagram data
 
 Creators connect their Instagram **Creator or Business** account through Instagram's official login (Business Login for Instagram). Collabo then reads, with their permission:

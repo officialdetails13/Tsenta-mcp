@@ -98,14 +98,15 @@ export function createApp(db) {
   }
   app.get('/api/me', auth(), (req, res) => res.json(me(req.user.id)));
 
-  app.get('/api/meta', (_req, res) => res.json({
+  app.locals.meta = () => ({
     platforms: PLATFORMS, deliverables: DELIVERABLES, niches: NICHES, edit_styles: EDIT_STYLES, post_formats: POST_FORMATS, stages: STAGES,
     fees: { buyer: BUYER_FEE, seller: SELLER_FEE },
     offer: { format_labels: FORMAT_LABEL, durations: DURATIONS, term_options: TERM_OPTIONS, default_terms: DEFAULT_TERMS },
     feedback_categories: ['hook', 'branding', 'messaging', 'visuals', 'audio', 'caption', 'compliance', 'general'],
     ai_review: aiEnabled(),
     instagram_connect: ig.configured(),
-  }));
+  });
+  app.get('/api/meta', (_req, res) => res.json(app.locals.meta()));
 
   // ---------- creators ----------
   function creatorStats(id) {
